@@ -42,3 +42,12 @@ def time_cost(func):
         return res
 
     return deco
+
+
+def get_max_date(table='etf.ods_etf_history'):
+    with get_connection() as cursor:
+        sql = f'''select max(date) date from {table}'''
+        cursor.execute(sql)
+        res = cursor.fetchall()
+        date = res[0][0]
+    return date

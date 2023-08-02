@@ -61,6 +61,7 @@ def get_all_best_parameter():
     buy_dfs = pd.concat(buy_dfs, axis=0).sort_values("date_buy")
     buy_dfs.to_csv("buy_dfs.csv", index=False)
 
+
 @time_cost
 def get_spark():
     parallel_num = str(cpu_count * 3)
@@ -80,6 +81,7 @@ def get_spark():
     spark.sparkContext.setLogLevel("ERROR")
     return spark
 
+
 @time_cost
 def load_spark_sql():
     sql_text = open('data/spark.sql', encoding='utf-8').read()
@@ -98,6 +100,7 @@ def get_ols(x, y):
     slope, intercept = np.polyfit(x, y, 1)
     r2 = (sum((y - (slope * x + intercept)) ** 2) / ((len(y) - 1) * np.var(y, ddof=1)))
     return float(slope), float(intercept), float(r2)
+
 
 @time_cost
 def get_etf_slope():
@@ -125,14 +128,11 @@ def get_etf_slope():
         cursor.executemany(sql, res.values.tolist())
 
 
+def get_etf_slope_rt():
+    pass
+
+
 if __name__ == '__main__':
-    # code = '510300'
-    # df_rsrs = pd.read_csv("data/rsrs_etf.csv", dtype={'code': object})
-    # df = df_rsrs[df_rsrs.code == code]
-    # res = get_profit(df, low=-1.4, high=0.7)
-    # res['code'] = code
-    # res.to_csv('temp.csv', index=False)
-    # get_all_best_parameter()
     import time
 
     start_time = time.time()

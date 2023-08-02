@@ -4,7 +4,8 @@ from get_etf_scale import get_all_fund_scale
 import akshare as ak
 import easyquotation
 import retrying
-from mysql_util import get_connection, time_cost
+from mysql_util import get_connection, time_cost, get_max_date
+from slope_strategy import get_etf_slope
 
 thread_num = 10
 
@@ -43,14 +44,6 @@ def get_etf_codes():
         codes = [ele[0] for ele in res]
     return codes
 
-
-def get_max_date():
-    with get_connection() as cursor:
-        sql = '''select max(date) date from etf.ods_etf_history'''
-        cursor.execute(sql)
-        res = cursor.fetchall()
-        date = res[0][0]
-    return date
 
 
 @time_cost
@@ -124,6 +117,7 @@ def run_every_day():
     update_etf_scale()
     update_etf_basic_info()
     update_etf_history_data()
+    get_etf_slope()
 
 
 if __name__ == "__main__":
