@@ -124,7 +124,9 @@ def get_etf_slope():
 
     etf_df = spark.createDataFrame(etf_df, ['code', 'date', 'close'])
     etf_df.createOrReplaceTempView("df")
-    res = spark.sql(spark_sql[0]).toPandas()
+    res = spark.sql(spark_sql[0])
+    update_min_date = get_max_date(n=5)
+    res = res.where(res.date >= update_min_date).toPandas()
     res = res.fillna(0)
     with get_connection() as cursor:
         sql = '''
