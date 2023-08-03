@@ -2,9 +2,8 @@ import numpy as np
 import pandas as pd
 import psutil
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, DoubleType
 from tqdm import tqdm
-from mysql_util import get_connection, time_cost
+from mysql_util import time_cost
 
 cpu_count = psutil.cpu_count()
 
