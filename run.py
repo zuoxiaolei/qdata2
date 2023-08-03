@@ -1,5 +1,6 @@
 import sys
-from update_etf_data import run_every_minute, run_every_hour, run_every_day
+from update_etf_data import run_every_minute, run_every_day
+
 
 def main():
     method = sys.argv[1]
