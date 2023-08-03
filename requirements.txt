@@ -10,3 +10,4 @@ psutil
 pyspark==3.3.2
 pyarrow
 matplotlib
+pymysql
