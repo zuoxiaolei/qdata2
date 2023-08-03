@@ -102,40 +102,6 @@ def get_ols(x, y):
     return float(slope), float(intercept), float(r2)
 
 
-@time_cost
-def get_etf_slope():
-    spark_sql = load_spark_sql()
-    spark = get_spark()
-    schema = StructType().add("slope", DoubleType()).add("intercept", DoubleType()).add("r2", DoubleType())
-    spark.udf.register('get_ols', get_ols, schema)
-    with get_connection() as cursor:
-        sql = '''
-        select code, date, close
-        from etf.ods_etf_history
-        '''
-        cursor.execute(sql)
-        etf_df = cursor.fetchall()
-
-    etf_df = spark.createDataFrame(etf_df, ['code', 'date', 'close'])
-    etf_df.createOrReplaceTempView("df")
-    res = spark.sql(spark_sql[0]).toPandas()
-    res = res.fillna(0)
-    with get_connection() as cursor:
-        sql = '''
-        replace into etf.dws_etf_slope_history(code, `date`, close, slope, slope_mean, slope_std)
-        values (%s, %s, %s, %s, %s, %s)
-        '''
-        cursor.executemany(sql, res.values.tolist())
-
-
-def get_etf_slope_rt():
-    pass
-
 
 if __name__ == '__main__':
-    import time
-
-    start_time = time.time()
-    get_etf_slope()
-    end_time = time.time()
-    print(end_time - start_time)
+    pass

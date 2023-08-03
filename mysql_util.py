@@ -38,15 +38,15 @@ def time_cost(func):
         start_time = time.time()
         res = func(*args, **kwargs)
         end_time = time.time()
-        print(f"func.__name__ use {end_time - start_time}second")
+        print(f"{func.__name__} use {end_time - start_time}second")
         return res
 
     return deco
 
 
-def get_max_date(table='etf.ods_etf_history'):
+def get_max_date(n=1):
     with get_connection() as cursor:
-        sql = f'''select max(date) date from {table}'''
+        sql = f'''select date date from etf.dim_etf_trade_date where rn={n}'''
         cursor.execute(sql)
         res = cursor.fetchall()
         date = res[0][0]
