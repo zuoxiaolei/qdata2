@@ -10,3 +10,6 @@ def main():
         other_args = ','.join(other_args)
     eval_string = f"{method}({other_args})"
     eval(eval_string)
+
+
+main()

@@ -13,6 +13,7 @@ import pytz
 thread_num = 10
 tz = pytz.timezone('Asia/Shanghai')
 
+
 @time_cost
 def update_etf_scale():
     scale_df = get_all_fund_scale()
@@ -46,7 +47,6 @@ def get_etf_codes():
         res = cursor.fetchall()
         codes = [ele[0] for ele in res]
     return codes
-
 
 
 @time_cost
@@ -133,6 +133,7 @@ def get_etf_slope():
         '''
         cursor.executemany(sql, res.values.tolist())
 
+
 @time_cost
 def get_etf_slope_rt():
     max_rt_date = get_max_date()
@@ -177,7 +178,6 @@ def get_etf_slope_rt():
 def run_every_minute():
     update_etf_realtime()
     get_etf_slope_rt()
-
 
 
 def run_every_day():
