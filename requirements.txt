@@ -11,3 +11,4 @@ pyspark==3.3.2
 pyarrow
 matplotlib
 pymysql
+SQLAlchemy==1.4.39
