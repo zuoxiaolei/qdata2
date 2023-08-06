@@ -5,7 +5,7 @@ import akshare as ak
 import easyquotation
 import retrying
 from mysql_util import get_connection, time_cost, get_max_date
-from slope_strategy import load_spark_sql, get_spark, get_ols
+from slope_strategy import load_spark_sql, get_spark, get_ols, get_stock_best_parameter
 from pyspark.sql.types import StructType, DoubleType
 import time
 import pytz
@@ -54,7 +54,7 @@ def update_stock_realtime():
             low = real_stock['low']
             volume = real_stock['volume']
             now = real_stock['now']
-            increase_rate = (now / (close+1e-6)) - 1
+            increase_rate = (now / (close + 1e-6)) - 1
             realtime_df.append([code, date, open, close, high, low, volume, now, increase_rate])
         sql = '''
         replace into stock.ods_stock_realtime(code, `date`, open, close, high, low, volume, now, increase_rate)
@@ -96,7 +96,7 @@ def update_stock_history_data(full=False):
 
 
 @time_cost
-def get_etf_slope():
+def get_stock_slope():
     spark_sql = load_spark_sql()
     spark = get_spark()
     schema = StructType().add("slope", DoubleType()).add("intercept", DoubleType()).add("r2", DoubleType())
@@ -104,7 +104,8 @@ def get_etf_slope():
     with get_connection() as cursor:
         sql = '''
         select code, date, close
-        from etf.ods_etf_history
+        from stock.ods_stock_history
+        where date in (select date from etf.dim_etf_trade_date where rn<=600)
         '''
         cursor.execute(sql)
         etf_df = cursor.fetchall()
@@ -117,14 +118,14 @@ def get_etf_slope():
     res = res.fillna(0)
     with get_connection() as cursor:
         sql = '''
-        replace into etf.dws_etf_slope_history(code, `date`, close, slope, slope_mean, slope_std)
+        replace into stock.dws_stock_slope_history(code, `date`, close, slope, slope_mean, slope_std)
         values (%s, %s, %s, %s, %s, %s)
         '''
         cursor.executemany(sql, res.values.tolist())
 
 
 @time_cost
-def get_etf_slope_rt():
+def get_stock_slope_rt():
     max_rt_date = get_max_date()
     spark_sql = load_spark_sql()
 
@@ -132,18 +133,18 @@ def get_etf_slope_rt():
     select t1.code, t1.date, (t1.increase_rate+1)*t2.close close
     from (
     select code, date, increase_rate
-    from etf.ods_etf_realtime
-    where date in (select max(date) from etf.ods_etf_realtime)
+    from stock.ods_stock_realtime
+    where date in (select date from etf.dim_etf_trade_date where rn=1)
     )t1 
     join (
     select code, date, close 
-    from etf.ods_etf_history
-    where date='{max_rt_date}'
+    from stock.ods_stock_history
+    where date in (select date from etf.dim_etf_trade_date where rn=2)
     )t2
     on t1.code=t2.code
     union all
     select code, date, close
-    from etf.ods_etf_history
+    from stock.ods_stock_history
     where date in (select date from etf.dim_etf_trade_date where rn<=20) and date<'{max_rt_date}'
     '''
     with get_connection() as cursor:
@@ -156,26 +157,26 @@ def get_etf_slope_rt():
     etf_df.createOrReplaceTempView("df")
     res = spark.sql(spark_sql[1].format(max_rt_date)).toPandas()
     res = res.fillna(0)
-    print(res.head())
     with get_connection() as cursor:
         sql = '''
-        replace into etf.dws_etf_slope_realtime(code, `date`, close, slope)
+        replace into stock.dws_stock_slope_realtime(code, `date`, close, slope)
         values (%s, %s, %s, %s)
         '''
         cursor.executemany(sql, res.values.tolist())
 
 
 def run_every_minute():
-    update_etf_realtime()
-    get_etf_slope_rt()
+    update_stock_realtime()
+    get_stock_slope_rt()
 
 
 def run_every_day():
     update_stock_basic_info()
     update_stock_history_data()
     get_stock_slope()
+    get_stock_best_parameter()
 
 
 if __name__ == "__main__":
-    # run_every_day()
-    update_stock_history_data(full=False)
+    # run_every_minute()
+    run_every_day()

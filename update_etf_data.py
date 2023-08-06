@@ -5,7 +5,7 @@ import akshare as ak
 import easyquotation
 import retrying
 from mysql_util import get_connection, time_cost, get_max_date
-from slope_strategy import load_spark_sql, get_spark, get_ols
+from slope_strategy import load_spark_sql, get_spark, get_ols, get_etf_best_parameter
 from pyspark.sql.types import StructType, DoubleType
 import time
 import pytz
@@ -146,12 +146,12 @@ def get_etf_slope_rt():
     from (
     select code, date, increase_rate
     from etf.ods_etf_realtime
-    where date in (select max(date) from etf.ods_etf_realtime)
+    where date in (select date from etf.dim_etf_trade_date where rn=1)
     )t1 
     join (
     select code, date, close 
     from etf.ods_etf_history
-    where date='{max_rt_date}'
+    where date in (select date from etf.dim_etf_trade_date where rn=2)
     )t2
     on t1.code=t2.code
     union all
@@ -187,6 +187,7 @@ def run_every_day():
     update_etf_basic_info()
     update_etf_history_data()
     get_etf_slope()
+    get_etf_best_parameter()
 
 
 if __name__ == "__main__":

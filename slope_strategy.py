@@ -3,14 +3,15 @@ import pandas as pd
 import psutil
 from pyspark.sql import SparkSession
 from tqdm import tqdm
-from mysql_util import time_cost
+from mysql_util import time_cost, get_connection
+from concurrent.futures import ProcessPoolExecutor
 
 cpu_count = psutil.cpu_count()
 
 
 def get_profit(df, low=-0.2, high=0.8):
     i, j = 1, 1
-    rsrs_list = df['slope_standard'].tolist()
+    rsrs_list = df['slope'].tolist()
     dates = df['date'].tolist()
     close_list = df['close'].tolist()
     result = []
@@ -22,43 +23,42 @@ def get_profit(df, low=-0.2, high=0.8):
             while j < len(df):
                 sell_index_value = rsrs_list[j]
                 if sell_index_value >= high:
-                    result.append([dates[i], dates[j], close_list[j] / close_list[i] - 1])
+                    result.append([dates[i], dates[j], close_list[j] / (close_list[i] + 1e-6) - 1])
                     break
                 j += 1
             i = j + 1
         else:
             i = i + 1
     result = pd.DataFrame(result, columns=['date_buy', 'date_sell', 'profit'])
-    return result
+    return result['profit'].sum()
 
 
 def get_best_parameter(df):
-    lows = [i / 10 - 2 for i in range(41)]
-    highs = [i / 10 - 2 for i in range(41)]
+    lows = [i / 10 - 3 for i in range(61)]
+    highs = [i / 10 - 3 for i in range(61)]
     from itertools import product
     result = []
     for low, high in product(lows, highs):
-        res = get_profit(df, low=low, high=high)
-        profit = res['profit'].sum()
-        result.append([low, high, profit])
+        if low < high and high - low >= 0.5:
+            profit = get_profit(df, low=low, high=high)
+            result.append([low, high, profit])
     result.sort(key=lambda x: x[2], reverse=True)
     return result[0]
 
 
-def get_all_best_parameter():
-    df_rsrs = pd.read_csv("data/rsrs_etf.csv", dtype={'code': object})
+def find_rsrs_task(args):
+    code, df = args
+    low, high, _ = get_best_parameter(df)
+    return (code, low, high)
+
+
+@time_cost
+def get_all_best_parameter(df_rsrs):
     dfs = dict(list(df_rsrs.groupby('code', as_index=False)))
-    best_params = []
-    buy_dfs = []
-    for code, df in tqdm(list(dfs.items())):
-        low, high, _ = get_best_parameter(df)
-        best_params.append([code, low, high])
-        buy_df = get_profit(df, low=low, high=high)
-        buy_df["code"] = code
-        buy_dfs.append(buy_df)
-    pd.DataFrame(best_params, columns=['code', 'low', 'high']).to_csv("best_params.csv", index=False)
-    buy_dfs = pd.concat(buy_dfs, axis=0).sort_values("date_buy")
-    buy_dfs.to_csv("buy_dfs.csv", index=False)
+    with ProcessPoolExecutor() as executor:
+        best_params = list(tqdm(executor.map(find_rsrs_task, list(dfs.items())), total=len(dfs)))
+    best_params = pd.DataFrame(best_params, columns=['code', 'low', 'high'])
+    return best_params
 
 
 @time_cost
@@ -101,6 +101,47 @@ def get_ols(x, y):
     return float(slope), float(intercept), float(r2)
 
 
+def get_etf_best_parameter():
+    with get_connection() as cursor:
+        sql = '''
+        select code,
+               date,
+               close,
+               (slope-slope_mean)/if(slope_std=0, 1e-6, slope_std) slope
+        from etf.dws_etf_slope_history
+        '''
+        cursor.execute(sql)
+        df = cursor.fetchall()
+    df = pd.DataFrame(df, columns=['code', 'date', 'close', 'slope'])
+    best_params = get_all_best_parameter(df)
+    with get_connection() as cursor:
+        sql = '''
+        replace into etf.dim_etf_slope_best(code, low, high)
+        values (%s, %s, %s)
+        '''
+        cursor.executemany(sql, best_params.values.tolist())
+
+
+def get_stock_best_parameter():
+    with get_connection() as cursor:
+        sql = '''
+        select code,
+               date,
+               close,
+               (slope-slope_mean)/if(slope_std=0, 1e-6, slope_std) slope
+        from stock.dws_stock_slope_history
+        '''
+        cursor.execute(sql)
+        df = cursor.fetchall()
+    df = pd.DataFrame(df, columns=['code', 'date', 'close', 'slope'])
+    best_params = get_all_best_parameter(df)
+    with get_connection() as cursor:
+        sql = '''
+        replace into stock.dim_stock_slope_best(code, low, high)
+        values (%s, %s, %s)
+        '''
+        cursor.executemany(sql, best_params.values.tolist())
+
 
 if __name__ == '__main__':
-    pass
+    get_stock_best_parameter()

@@ -11,6 +11,7 @@ is_local = False
 ttl = 600
 height = 740
 width = 800
+st.set_page_config(layout='wide')
 index_name = 'rsrs指标'
 columns = ['股票代码', '股票名称', '股票规模',
            '日期', '价格', 'rsrs指标',
@@ -22,7 +23,8 @@ max_date = mysql_conn.query(max_date_sql).values.tolist()[0][0]
 
 def show_rsrs_strategy():
     code = st.text_input('股代码/ETF基金代码', '159915')
-    select_stock_df = mysql_conn.query(stock_index_last.format(code, max_date, code, max_date))
+    select_stock_df = mysql_conn.query(
+        stock_index_last.format(code, max_date, code, max_date, code, max_date, code, max_date))
     select_stock_df.columns = columns
     select_stock_df = select_stock_df.drop(['昨天rsrs指标', '买卖信号'], axis=1)
     st.dataframe(select_stock_df, height=height, hide_index=True, width=width)
@@ -71,7 +73,7 @@ def set_self_select():
         if button_status:
             if select_type == '添加':
                 with get_connection() as cursor:
-                    cursor.execute(update_subscribe_sql.format(code))
+                    cursor.execute(update_subscribe_sql.format(code, code))
             elif select_type == '删除':
                 with get_connection() as cursor:
                     cursor.execute(delete_subscribe_sql.format(code))
