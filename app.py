@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 import pymysql
@@ -78,7 +77,7 @@ def set_self_select():
                     cursor.execute(delete_subscribe_sql.format(code))
     select_df = mysql_conn.query(select_stock_sql, ttl=0)
     select_df.columns = ['股票代码', '股票名称']
-    st.dataframe(select_df, hide_index=True, width=200)
+    st.dataframe(select_df, hide_index=True, width=400)
 
 
 page_names_to_funcs = {
