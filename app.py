@@ -43,7 +43,8 @@ def show_rsrs_strategy():
     st.dataframe(self_select_df, height=390, hide_index=True)
 
     st.markdown("## rsrs策略推荐")
-    buy_sell_df = mysql_conn.query(recommand_sql)
+    select_date = st.date_input("选择日期", value=datetime.datetime.strptime(max_date, '%Y-%m-%d'), format="YYYY-MM-DD")
+    buy_sell_df = mysql_conn.query(recommand_sql.format(str(select_date), str(select_date)))
     buy_sell_df.columns = columns
     st.markdown("### 买入推荐")
     buy_df = buy_sell_df[buy_sell_df["买卖信号"] == 'buy']

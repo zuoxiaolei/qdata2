@@ -50,7 +50,13 @@ select *
 from (
 select *
 from etf.ads_etf_strategy_rt_rpt
-where date in (select date from etf.dim_etf_trade_date where rn=1) 
+where date = '{}'
+      and slope_low is not null
+      and `signal` is not null
+union all
+select *
+from etf.ads_etf_strategy_history_rpt
+where date = '{}' and date in (select date from etf.dim_etf_trade_date where rn>=2)
       and slope_low is not null
       and `signal` is not null
       ) t 
