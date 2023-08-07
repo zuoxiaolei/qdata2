@@ -187,6 +187,50 @@ def get_etf_slope_rt():
             cursor.execute(sql, ele)
 
 
+def get_buy_sell_history(code):
+    sql = '''
+    select code, name, date, price close, slope, `signal`
+    from etf.ads_etf_strategy_history_rpt
+    where code='{}' and `signal` in ('buy', 'sell')
+    order by date
+    '''.format(code)
+
+    with get_connection() as cursor:
+        cursor.execute(sql)
+        history_data = cursor.fetchall()
+    i, j = 0, 0
+    buy_sell_data = []
+    while i < len(history_data):
+        signal = history_data[i][5]
+        if signal == 'buy':
+            j = i + 1
+            while j < len(history_data):
+                signal_sell = history_data[j][5]
+                if signal_sell == 'sell':
+                    buy_sell_data.append([code, history_data[i][1], history_data[i][2], history_data[j][2],
+                                          history_data[j][3] / history_data[i][3] - 1])
+                    i = j + 1
+                    break
+                j += 1
+            i = i + 1
+        else:
+            i += 1
+    return buy_sell_data
+
+
+def get_all_buy_sell_history():
+    codes = get_etf_codes()
+    for code in tqdm.tqdm(codes):
+        buy_sell_data = get_buy_sell_history(code)
+        sql = '''
+        replace into etf.ads_etf_buy_sell_history
+        values (%s, %s, %s, %s, %s)
+        '''
+        if buy_sell_data:
+            with get_connection() as cursor:
+                cursor.executemany(sql, buy_sell_data)
+
+
 def run_every_minute():
     update_etf_realtime()
     get_etf_slope_rt()
@@ -198,8 +242,9 @@ def run_every_day():
     update_etf_history_data()
     get_etf_slope()
     get_etf_best_parameter()
+    get_all_buy_sell_history()
 
 
 if __name__ == "__main__":
     # run_every_day()
-    run_every_day()
+    get_all_buy_sell_history()

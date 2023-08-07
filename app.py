@@ -35,6 +35,11 @@ def show_rsrs_strategy():
         plt.xticks(rotation=45)
         plt.title(code)
         st.pyplot(plt.gcf())
+    buy_sell_df = mysql_conn.query(f'''select * 
+                                       from etf.ads_etf_buy_sell_history
+                                       where code='{code}' order by start_date desc''')
+    st.markdown("## 历史买卖情况")
+    st.dataframe(buy_sell_df, hide_index=True, width=width)
 
     st.markdown("## 自选股票/基金")
     self_select_df = mysql_conn.query(self_select_sql, ttl=60)
