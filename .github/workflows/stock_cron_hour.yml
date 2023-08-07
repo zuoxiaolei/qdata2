@@ -5,7 +5,7 @@ name: Run stock every hour
 
 on:
   schedule:
-    - cron: '* */3 * * *'
+    - cron: '0 */3 * * *'
   workflow_dispatch:
 
 
