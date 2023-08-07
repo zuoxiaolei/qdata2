@@ -18,13 +18,13 @@ columns = ['股票代码', '股票名称', '股票规模',
            '昨天rsrs指标', 'rsrs买入阈值',
            'rsrs卖出阈值', '买卖信号']
 mysql_conn = st.experimental_connection('mysql', type='sql', ttl=60)
-max_date = mysql_conn.query(max_date_sql).values.tolist()[0][0]
+max_date = mysql_conn.query(max_date_sql, ttl=60).values.tolist()[0][0]
 
 
 def show_rsrs_strategy():
     code = st.text_input('股代码/ETF基金代码', '159915')
     select_stock_df = mysql_conn.query(
-        stock_index_last.format(code, max_date, code, max_date, code, max_date, code, max_date))
+        stock_index_last.format(code, max_date, code, max_date, code, max_date, code, max_date), ttl=60)
     select_stock_df.columns = columns
     select_stock_df = select_stock_df.drop(['昨天rsrs指标', '买卖信号'], axis=1)
     st.dataframe(select_stock_df, height=height, hide_index=True, width=width)
@@ -37,14 +37,14 @@ def show_rsrs_strategy():
         st.pyplot(plt.gcf())
 
     st.markdown("## 自选股票/基金")
-    self_select_df = mysql_conn.query(self_select_sql)
+    self_select_df = mysql_conn.query(self_select_sql, ttl=60)
     self_select_df.columns = columns
     self_select_df = self_select_df.sort_values(index_name)
     st.dataframe(self_select_df, height=390, hide_index=True)
 
     st.markdown("## rsrs策略推荐")
     select_date = st.date_input("选择日期", value=datetime.datetime.strptime(max_date, '%Y-%m-%d'), format="YYYY-MM-DD")
-    buy_sell_df = mysql_conn.query(recommand_sql.format(str(select_date), str(select_date)))
+    buy_sell_df = mysql_conn.query(recommand_sql.format(str(select_date), str(select_date)), ttl=60)
     buy_sell_df.columns = columns
     st.markdown("### 买入推荐")
     buy_df = buy_sell_df[buy_sell_df["买卖信号"] == 'buy']
