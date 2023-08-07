@@ -115,13 +115,12 @@ def get_etf_best_parameter():
     df = pd.DataFrame(df, columns=['code', 'date', 'close', 'slope'])
     best_params = get_all_best_parameter(df)
     print('update etf.dim_etf_slope_best')
-    for ele in tqdm(best_params.values.tolist()):
-        with get_connection() as cursor:
-            sql = '''
-            replace into etf.dim_etf_slope_best(code, low, high)
-            values (%s, %s, %s)
-            '''
-            cursor.execute(sql, ele)
+    with get_connection() as cursor:
+        sql = '''
+        replace into etf.dim_etf_slope_best(code, low, high)
+        values (%s, %s, %s)
+        '''
+        cursor.executemany(sql, best_params)
 
 
 def get_stock_best_parameter():
