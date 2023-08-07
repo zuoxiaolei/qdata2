@@ -18,12 +18,14 @@ tz = pytz.timezone('Asia/Shanghai')
 def update_etf_scale():
     scale_df = get_all_fund_scale()
     etf_scale_data = scale_df.values.tolist()
-    with get_connection() as cursor:
-        sql = f'''
-        replace into etf.dim_etf_scale(code, scale)
-        values (%s, %s)
-        '''
-        cursor.executemany(sql, etf_scale_data)
+    print("update etf.dim_etf_scale")
+    for ele in tqdm.tqdm(etf_scale_data):
+        with get_connection() as cursor:
+            sql = f'''
+            replace into etf.dim_etf_scale(code, scale)
+            values (%s, %s)
+            '''
+            cursor.execute(sql, ele)
 
 
 @time_cost
@@ -31,12 +33,14 @@ def update_etf_basic_info():
     fund_etf_fund_daily_em_df = ak.fund_etf_fund_daily_em()
     fund_etf_fund_daily_em_df = fund_etf_fund_daily_em_df.sort_values(by=[])
     fund_etf_fund_daily_em_df = fund_etf_fund_daily_em_df[['基金代码', '基金简称', '类型', '折价率']]
-    with get_connection() as cursor:
-        sql = f'''
-        replace into etf.dim_etf_basic_info(code, name, type, discount_rate)
-        values (%s, %s, %s, %s)
-        '''
-        cursor.executemany(sql, fund_etf_fund_daily_em_df.values.tolist())
+    print("update etf.dim_etf_basic_info")
+    for ele in tqdm.tqdm(fund_etf_fund_daily_em_df.values.tolist()):
+        with get_connection() as cursor:
+            sql = f'''
+            replace into etf.dim_etf_basic_info(code, name, type, discount_rate)
+            values (%s, %s, %s, %s)
+            '''
+            cursor.execute(sql, ele)
 
 
 @time_cost
@@ -66,13 +70,15 @@ def update_etf_realtime():
         now = real_stock['now']
         increase_rate = (now / close) - 1
         realtime_df.append([code, date, open, close, high, low, volume, now, increase_rate])
-        
-    with get_connection() as cursor:
-        sql = '''
-        replace into etf.ods_etf_realtime(code, `date`, open, close, high, low, volume, now, increase_rate)
-        values (%s, %s, %s, %s,%s, %s, %s, %s,%s)
-        '''
-        cursor.executemany(sql, realtime_df)
+
+    print("update etf.ods_etf_realtime")
+    for ele in tqdm.tqdm(realtime_df):
+        with get_connection() as cursor:
+            sql = '''
+            replace into etf.ods_etf_realtime(code, `date`, open, close, high, low, volume, now, increase_rate)
+            values (%s, %s, %s, %s,%s, %s, %s, %s,%s)
+            '''
+            cursor.execute(sql, ele)
 
 
 @time_cost
@@ -125,15 +131,17 @@ def get_etf_slope():
     etf_df = spark.createDataFrame(etf_df, ['code', 'date', 'close'])
     etf_df.createOrReplaceTempView("df")
     res = spark.sql(spark_sql[0])
-    update_min_date = get_max_date(n=5)
+    update_min_date = get_max_date(n=2)
     res = res.where(res.date >= update_min_date).toPandas()
     res = res.fillna(0)
-    with get_connection() as cursor:
-        sql = '''
-        replace into etf.dws_etf_slope_history(code, `date`, close, slope, slope_mean, slope_std)
-        values (%s, %s, %s, %s, %s, %s)
-        '''
-        cursor.executemany(sql, res.values.tolist())
+    print("update etf.dws_etf_slope_history")
+    for ele in tqdm.tqdm(res.values.tolist()):
+        with get_connection() as cursor:
+            sql = '''
+            replace into etf.dws_etf_slope_history(code, `date`, close, slope, slope_mean, slope_std)
+            values (%s, %s, %s, %s, %s, %s)
+            '''
+            cursor.execute(sql, ele)
 
 
 @time_cost
@@ -169,12 +177,14 @@ def get_etf_slope_rt():
     etf_df.createOrReplaceTempView("df")
     res = spark.sql(spark_sql[1].format(max_rt_date)).toPandas()
     res = res.fillna(0)
-    with get_connection() as cursor:
-        sql = '''
-        replace into etf.dws_etf_slope_realtime(code, `date`, close, slope)
-        values (%s, %s, %s, %s)
-        '''
-        cursor.executemany(sql, res.values.tolist())
+    print("update etf.dws_etf_slope_realtime")
+    for ele in tqdm.tqdm(res.values.tolist()):
+        with get_connection() as cursor:
+            sql = '''
+            replace into etf.dws_etf_slope_realtime(code, `date`, close, slope)
+            values (%s, %s, %s, %s)
+            '''
+            cursor.execute(sql, ele)
 
 
 def run_every_minute():
@@ -192,4 +202,4 @@ def run_every_day():
 
 if __name__ == "__main__":
     # run_every_day()
-    run_every_minute()
+    run_every_day()
