@@ -3,7 +3,7 @@ import time
 import pymysql
 import os
 from contextlib import contextmanager
-from dbutils.pooled_db import PooledDB
+# from dbutils.pooled_db import PooledDB
 
 host = os.environ['MYSQL_IP']
 port = os.environ['MYSQL_PORT']
