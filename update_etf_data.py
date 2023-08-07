@@ -52,22 +52,22 @@ def get_etf_codes():
 @time_cost
 def update_etf_realtime():
     codes = get_etf_codes()
-
+    quotation = easyquotation.use('sina')
+    realtime_data = quotation.stocks(codes)
+    realtime_df = []
+    for code in realtime_data:
+        real_stock = realtime_data[code]
+        date = real_stock['date']
+        open = real_stock["open"]
+        close = real_stock['close']
+        high = real_stock['high']
+        low = real_stock['low']
+        volume = real_stock['volume']
+        now = real_stock['now']
+        increase_rate = (now / close) - 1
+        realtime_df.append([code, date, open, close, high, low, volume, now, increase_rate])
+        
     with get_connection() as cursor:
-        quotation = easyquotation.use('sina')
-        realtime_data = quotation.stocks(codes)
-        realtime_df = []
-        for code in realtime_data:
-            real_stock = realtime_data[code]
-            date = real_stock['date']
-            open = real_stock["open"]
-            close = real_stock['close']
-            high = real_stock['high']
-            low = real_stock['low']
-            volume = real_stock['volume']
-            now = real_stock['now']
-            increase_rate = (now / close) - 1
-            realtime_df.append([code, date, open, close, high, low, volume, now, increase_rate])
         sql = '''
         replace into etf.ods_etf_realtime(code, `date`, open, close, high, low, volume, now, increase_rate)
         values (%s, %s, %s, %s,%s, %s, %s, %s,%s)
