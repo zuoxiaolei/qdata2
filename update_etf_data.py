@@ -228,6 +228,21 @@ def get_all_buy_sell_history():
 
 def run_every_minute():
     update_etf_realtime()
+    with get_connection() as cursor:
+        sql = '''
+        replace into etf.dim_etf_trade_date
+        select date,
+            row_number() over (order by date desc) rn
+        from (
+        select date
+        from etf.ods_etf_history
+        union
+        select date
+        from etf.ods_etf_realtime
+        ) t
+        order by date desc
+        '''
+        cursor.execute(sql)
     get_etf_slope_rt()
 
 

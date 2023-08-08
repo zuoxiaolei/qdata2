@@ -32,7 +32,7 @@ def get_mysql_connection(database):
 
 @contextmanager
 def get_connection():
-    conn = pool.connection()
+    conn = get_mysql_connection('etf')
     cursor = conn.cursor()
     yield cursor
     conn.commit()
@@ -53,7 +53,7 @@ def time_cost(func):
 
 def get_max_date(n=1):
     with get_connection() as cursor:
-        sql = f'''select date date from etf.dim_etf_trade_date where rn={n}'''
+        sql = f'''select date from dim_etf_trade_date order by date desc limit {n},1'''
         cursor.execute(sql)
         res = cursor.fetchall()
         date = res[0][0]
