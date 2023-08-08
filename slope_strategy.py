@@ -3,7 +3,7 @@ import pandas as pd
 import psutil
 from pyspark.sql import SparkSession
 from tqdm import tqdm
-from mysql_util import time_cost, get_connection
+from mysql_util import insert_table_by_batch, time_cost, get_connection
 from concurrent.futures import ProcessPoolExecutor
 
 cpu_count = psutil.cpu_count()
@@ -115,12 +115,11 @@ def get_etf_best_parameter():
     df = pd.DataFrame(df, columns=['code', 'date', 'close', 'slope'])
     best_params = get_all_best_parameter(df)
     print('update etf.dim_etf_slope_best')
-    with get_connection() as cursor:
-        sql = '''
+    sql = '''
         replace into etf.dim_etf_slope_best(code, low, high)
         values (%s, %s, %s)
         '''
-        cursor.executemany(sql, best_params.values.tolist())
+    insert_table_by_batch(sql, best_params.values.tolist())
 
 
 def get_stock_best_parameter():
@@ -136,12 +135,11 @@ def get_stock_best_parameter():
         df = cursor.fetchall()
     df = pd.DataFrame(df, columns=['code', 'date', 'close', 'slope'])
     best_params = get_all_best_parameter(df)
-    with get_connection() as cursor:
-        sql = '''
+    sql = '''
         replace into stock.dim_stock_slope_best(code, low, high)
         values (%s, %s, %s)
         '''
-        cursor.executemany(sql, best_params.values.tolist())
+    insert_table_by_batch(sql, best_params.values.tolist())
 
 
 if __name__ == '__main__':

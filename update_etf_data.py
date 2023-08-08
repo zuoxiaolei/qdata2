@@ -4,7 +4,7 @@ from get_etf_scale import get_all_fund_scale
 import akshare as ak
 import easyquotation
 import retrying
-from mysql_util import get_connection, time_cost, get_max_date
+from mysql_util import get_connection, time_cost, get_max_date, insert_table_by_batch
 from slope_strategy import load_spark_sql, get_spark, get_ols, get_etf_best_parameter
 from pyspark.sql.types import StructType, DoubleType
 import time
@@ -19,13 +19,14 @@ def update_etf_scale():
     scale_df = get_all_fund_scale()
     etf_scale_data = scale_df.values.tolist()
     print("update etf.dim_etf_scale")
-    with get_connection() as cursor:
-        sql = f'''
+    start_time = time.time()
+    sql = '''
         replace into etf.dim_etf_scale(code, scale)
         values (%s, %s)
         '''
-        cursor.executemany(sql, etf_scale_data)
-
+    insert_table_by_batch(sql, etf_scale_data)
+    end_time = time.time()
+    print(end_time-start_time) # 0.12199997901916504
 
 @time_cost
 def update_etf_basic_info():
@@ -33,12 +34,11 @@ def update_etf_basic_info():
     fund_etf_fund_daily_em_df = fund_etf_fund_daily_em_df.sort_values(by=[])
     fund_etf_fund_daily_em_df = fund_etf_fund_daily_em_df[['基金代码', '基金简称', '类型', '折价率']]
     print("update etf.dim_etf_basic_info")
-    with get_connection() as cursor:
-        sql = f'''
+    sql = f'''
         replace into etf.dim_etf_basic_info(code, name, type, discount_rate)
         values (%s, %s, %s, %s)
         '''
-        cursor.executemany(sql, fund_etf_fund_daily_em_df.values.tolist())
+    insert_table_by_batch(sql, fund_etf_fund_daily_em_df.values.tolist())
 
 
 @time_cost
@@ -70,12 +70,11 @@ def update_etf_realtime():
         realtime_df.append([code, date, open, close, high, low, volume, now, increase_rate])
 
     print("update etf.ods_etf_realtime")
-    with get_connection() as cursor:
-        sql = '''
+    sql = '''
         replace into etf.ods_etf_realtime(code, `date`, open, close, high, low, volume, now, increase_rate)
         values (%s, %s, %s, %s,%s, %s, %s, %s,%s)
         '''
-        cursor.executemany(sql, realtime_df)
+    insert_table_by_batch(sql, realtime_df)
 
 
 @time_cost
@@ -95,12 +94,11 @@ def update_etf_history_data(full=False):
             df.columns = ['date', 'open', 'close', 'high', 'low', 'volume']
             df['code'] = code
             df = df[['code', 'date', 'open', 'close', 'high', 'low', 'volume']]
-            with get_connection() as cursor:
-                sql = '''
+            sql = '''
                 replace into etf.ods_etf_history(code, date, open, close, high, low, volume)
                 values (%s, %s, %s, %s, %s, %s, %s)
                 '''
-                cursor.executemany(sql, df.values.tolist())
+            insert_table_by_batch(sql, df.values.tolist())
             time.sleep(0.5)
             del df
         except Exception as e:
@@ -132,17 +130,16 @@ def get_etf_slope():
     res = res.where(res.date >= update_min_date).toPandas()
     res = res.fillna(0)
     print("update etf.dws_etf_slope_history")
-    with get_connection() as cursor:
-        sql = '''
+    sql = '''
         replace into etf.dws_etf_slope_history(code, `date`, close, slope, slope_mean, slope_std)
         values (%s, %s, %s, %s, %s, %s)
         '''
-        cursor.executemany(sql, res.values.tolist())
+    insert_table_by_batch(sql, res.values.tolist())
 
 
 @time_cost
 def get_etf_slope_rt():
-    max_rt_date = get_max_date()
+    max_rt_date = get_max_date(n=1)
     spark_sql = load_spark_sql()
 
     sql_rt = f'''
@@ -174,12 +171,12 @@ def get_etf_slope_rt():
     res = spark.sql(spark_sql[1].format(max_rt_date)).toPandas()
     res = res.fillna(0)
     print("update etf.dws_etf_slope_realtime")
-    with get_connection() as cursor:
-        sql = '''
+    print(res.shape)
+    sql = '''
         replace into etf.dws_etf_slope_realtime(code, `date`, close, slope)
         values (%s, %s, %s, %s)
         '''
-        cursor.executemany(sql, res.values.tolist())
+    insert_table_by_batch(sql, res.values.tolist())
 
 
 def get_buy_sell_history(code):
@@ -222,8 +219,7 @@ def get_all_buy_sell_history():
         values (%s, %s, %s, %s, %s)
         '''
         if buy_sell_data:
-            with get_connection() as cursor:
-                cursor.executemany(sql, buy_sell_data)
+            insert_table_by_batch(sql, buy_sell_data)
 
 
 def run_every_minute():
@@ -256,5 +252,10 @@ def run_every_day():
 
 
 if __name__ == "__main__":
-    # run_every_day()
-    run_every_minute()
+    run_every_day()
+    # run_every_minute()
+
+    # update_etf_scale()
+
+    # max_rt_date = get_max_date()
+    # print(max_rt_date)
