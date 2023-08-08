@@ -120,7 +120,7 @@ def get_etf_best_parameter():
         replace into etf.dim_etf_slope_best(code, low, high)
         values (%s, %s, %s)
         '''
-        cursor.executemany(sql, best_params)
+        cursor.executemany(sql, best_params.values.tolist())
 
 
 def get_stock_best_parameter():
