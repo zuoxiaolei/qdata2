@@ -5,6 +5,7 @@ import akshare as ak
 import easyquotation
 import retrying
 from mysql_util import get_connection, time_cost, get_max_date, insert_table_by_batch
+from send_message import send_ratation_message
 from slope_strategy import load_spark_sql, get_spark, get_ols, get_etf_best_parameter
 from pyspark.sql.types import StructType, DoubleType
 import time
@@ -223,8 +224,27 @@ def get_all_buy_sell_history():
             insert_table_by_batch(sql, buy_sell_data)
 
 
-def run_every_minute():
-    update_etf_realtime()
+@time_cost
+def update_trade_date():
+    with get_connection() as cursor:
+        sql = '''
+        replace into etf.dim_etf_trade_date
+        select date,
+            row_number() over (order by date desc) rn
+        from (
+        select date
+        from etf.ods_etf_history
+        union
+        select date
+        from etf.ods_etf_realtime
+        ) t
+        order by date desc
+        '''
+        cursor.execute(sql)
+
+
+@time_cost
+def update_ratation():
     with get_connection() as cursor:
         sql = '''
         replace into etf.ads_etf_ratation_strategy
@@ -277,6 +297,14 @@ def run_every_minute():
         cursor.execute(sql)
 
 
+def run_every_minute():
+    update_etf_realtime()
+    update_trade_date()
+    get_etf_slope_rt()
+    update_ratation()
+    send_ratation_message()
+
+
 def run_every_day():
     update_etf_scale()
     update_etf_basic_info()
@@ -287,7 +315,7 @@ def run_every_day():
 
 
 if __name__ == "__main__":
-    run_every_day()
+    run_every_minute()
     # run_every_minute()
 
     # update_etf_scale()
