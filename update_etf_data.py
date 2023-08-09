@@ -26,7 +26,8 @@ def update_etf_scale():
         '''
     insert_table_by_batch(sql, etf_scale_data)
     end_time = time.time()
-    print(end_time-start_time) # 0.12199997901916504
+    print(end_time - start_time)  # 0.12199997901916504
+
 
 @time_cost
 def update_etf_basic_info():
@@ -240,6 +241,56 @@ def run_every_minute():
         '''
         cursor.execute(sql)
     get_etf_slope_rt()
+    with get_connection() as cursor:
+        sql = '''
+        replace into etf.ads_etf_ratation_strategy
+        select code, name, start_price, end_price, start_date, end_date, (end_price_lead / start_price - 1) rate
+        from (select code,
+                     name, date, price, slope, rn1-rn2 rn,
+                     first_value(price) over(partition by code, rn1-rn2 order by date) start_price,
+                     first_value(price) over(partition by code, rn1-rn2 order by date desc) end_price,
+                     first_value(date) over(partition by code, rn1-rn2 order by date) start_date,
+                     first_value(date) over(partition by code, rn1-rn2 order by date desc) end_date,
+                     first_value(price_lead) over(partition by code, rn1-rn2 order by date desc) end_price_lead
+              from (
+                  select *,
+                  row_number() over(order by date) rn1, row_number() over(partition by code order by date) rn2
+                  from (
+                  select *,  lag(rn, 1) over(partition by code order by date) last_rn,
+                                lag(rn, 2) over(partition by code order by date) last_rn2
+                  from (
+                    select code, name, date, price, slope, price_lead,
+                  ROW_NUMBER() over(partition by date order by slope desc) rn
+                  from (
+                  select code, name, date, price, price/price_lag-1 slope, price_lead
+                  from (
+                  select code, name, date, price,
+                  lag(price, 20) over(partition by code order by date) price_lag,
+                  lead(price, 1) over(partition by code order by date) price_lead
+                  from (
+                            select code, name, date, price
+                            from etf.ads_etf_strategy_history_rpt
+                            where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
+                            and date >='2015-07-13' and date<'2023-08-09'
+                            union all
+                            select code, name, date, price
+                            from etf.ads_etf_strategy_history_rpt
+                            where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
+                            and date='2023-08-09'
+                            )t
+                  ) t
+                  where price_lag is not null
+                  ) t
+                  )t
+                  ) t
+                 where rn=1 and last_rn=1 and last_rn2=1
+                  ) t
+        ) t
+        GROUP BY code, name, start_price, end_price, start_date, end_date,  (end_price_lead / start_price - 1)
+        order by end_date desc 
+        limit 10
+        '''
+        cursor.execute(sql)
 
 
 def run_every_day():
