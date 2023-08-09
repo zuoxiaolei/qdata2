@@ -227,22 +227,6 @@ def run_every_minute():
     update_etf_realtime()
     with get_connection() as cursor:
         sql = '''
-        replace into etf.dim_etf_trade_date
-        select date,
-            row_number() over (order by date desc) rn
-        from (
-        select date
-        from etf.ods_etf_history
-        union
-        select date
-        from etf.ods_etf_realtime
-        ) t
-        order by date desc
-        '''
-        cursor.execute(sql)
-    get_etf_slope_rt()
-    with get_connection() as cursor:
-        sql = '''
         replace into etf.ads_etf_ratation_strategy
         select code, name, start_price, end_price, start_date, end_date, (end_price_lead / start_price - 1) rate
         from (select code,
@@ -271,12 +255,12 @@ def run_every_minute():
                             select code, name, date, price
                             from etf.ads_etf_strategy_history_rpt
                             where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
-                            and date >='2015-07-13' and date<'2023-08-09'
+                            and date >='2015-07-13' and date in (select date from etf.dim_etf_trade_date where rn>1)
                             union all
                             select code, name, date, price
-                            from etf.ads_etf_strategy_history_rpt
+                            from etf.ads_etf_strategy_rt_rpt
                             where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
-                            and date='2023-08-09'
+                            and date in (select max(date) from etf.dim_etf_trade_date)
                             )t
                   ) t
                   where price_lag is not null
