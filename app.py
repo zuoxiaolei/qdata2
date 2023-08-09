@@ -88,8 +88,21 @@ def set_self_select():
     st.dataframe(select_df, hide_index=True, width=400)
 
 
+def ratation_strategy():
+    sql = '''
+    select * 
+    from  etf.ads_etf_ratation_strategy
+    order by end_date desc
+    '''
+    df = mysql_conn.query(sql, ttl=0)
+    df.columns = ['code', 'name', 'start_price', 'end_price', 'start_date', 'end_date', 'rate']
+    st.markdown("## 股票轮动策略")
+    st.dataframe(df, hide_index=True, width=width, height=height)
+
+
 page_names_to_funcs = {
     "RSRS策略": show_rsrs_strategy,
+    "轮动策略": ratation_strategy,
     "设置自选": set_self_select
 }
 demo_name = st.sidebar.selectbox("选择页面", page_names_to_funcs.keys())
