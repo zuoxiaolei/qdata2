@@ -411,9 +411,9 @@ def run_every_minute():
     update_etf_realtime()
     update_trade_date()
     get_etf_slope_rt()
+    get_rt_rpt()
     update_ratation()
     send_ratation_message()
-    get_rt_rpt()
 
 
 def run_every_day():
