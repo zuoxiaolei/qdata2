@@ -1,0 +1,2 @@
+pip install jupyter -i http://maven.qizhidao.net:8081/repository/algo-public/simple/  --trusted-host  maven.qizhidao.net
+jupyter notebook -ip 0.0.0.0 --allow-root --port 8888 --no-browser
