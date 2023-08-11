@@ -21,6 +21,7 @@ def get_mysql_connection(database):
         user=user,  # 用户名
         password=password,  # 密码
         database=database,  # 数据库名称
+        charset='utf8mb4'
     )
     return conn
 
