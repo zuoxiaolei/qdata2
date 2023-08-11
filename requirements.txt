@@ -13,3 +13,4 @@ matplotlib
 pymysql
 SQLAlchemy==1.4.39
 DBUtils
+pyquery
