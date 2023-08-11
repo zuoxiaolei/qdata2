@@ -4,7 +4,7 @@ from codecs import open
 import requests
 from pyquery import PyQuery
 from mysql_util import insert_table_by_batch
-
+import emoji
 
 def scrape(language):
     HEADERS = {
@@ -24,7 +24,7 @@ def scrape(language):
     for item in items:
         i = PyQuery(item)
         title = i(".lh-condensed a").text()
-        description = i("p.col-9").text()
+        description = emoji.demojize(i("p.col-9").text())
         url = i(".lh-condensed a").attr("href")
         url = "https://github.com" + url
         star_fork = i(".f6 a").text().strip()
@@ -52,4 +52,3 @@ def job():
 
 if __name__ == '__main__':
     job()
-    
