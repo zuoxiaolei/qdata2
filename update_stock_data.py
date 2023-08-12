@@ -1,10 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor
 import tqdm
-from get_etf_scale import get_all_fund_scale
 import akshare as ak
 import easyquotation
 import retrying
-from mysql_util import get_connection, time_cost, get_max_date
+from mysql_util import get_connection, time_cost, get_max_date, insert_table_by_batch
 from slope_strategy import load_spark_sql, get_spark, get_ols, get_stock_best_parameter
 from pyspark.sql.types import StructType, DoubleType
 import time
@@ -19,12 +18,11 @@ def update_stock_basic_info():
     stocks = ak.stock_zh_a_spot_em()
     stocks = stocks[['代码', '名称', '总市值', '流通市值']]
     stocks = stocks.fillna(0)
-    with get_connection() as cursor:
-        sql = f'''
+    sql = f'''
         replace into stock.dim_stock_basic_info(code, name, scale, scale_market)
         values (%s, %s, %s, %s)
         '''
-        cursor.executemany(sql, stocks.values.tolist())
+    insert_table_by_batch(sql, stocks.values.tolist())
 
 
 @time_cost
@@ -40,27 +38,25 @@ def get_stock_codes():
 @time_cost
 def update_stock_realtime():
     codes = get_stock_codes()
-
-    with get_connection() as cursor:
-        quotation = easyquotation.use('sina')
-        realtime_data = quotation.stocks(codes)
-        realtime_df = []
-        for code in realtime_data:
-            real_stock = realtime_data[code]
-            date = real_stock['date']
-            open = real_stock["open"]
-            close = real_stock['close']
-            high = real_stock['high']
-            low = real_stock['low']
-            volume = real_stock['volume']
-            now = real_stock['now']
-            increase_rate = (now / (close + 1e-6)) - 1
-            realtime_df.append([code, date, open, close, high, low, volume, now, increase_rate])
-        sql = '''
-        replace into stock.ods_stock_realtime(code, `date`, open, close, high, low, volume, now, increase_rate)
-        values (%s, %s, %s, %s,%s, %s, %s, %s,%s)
-        '''
-        cursor.executemany(sql, realtime_df)
+    quotation = easyquotation.use('sina')
+    realtime_data = quotation.stocks(codes)
+    realtime_df = []
+    for code in realtime_data:
+        real_stock = realtime_data[code]
+        date = real_stock['date']
+        open = real_stock["open"]
+        close = real_stock['close']
+        high = real_stock['high']
+        low = real_stock['low']
+        volume = real_stock['volume']
+        now = real_stock['now']
+        increase_rate = (now / (close + 1e-6)) - 1
+        realtime_df.append([code, date, open, close, high, low, volume, now, increase_rate])
+    sql = '''
+    replace into stock.ods_stock_realtime(code, `date`, open, close, high, low, volume, now, increase_rate)
+    values (%s, %s, %s, %s,%s, %s, %s, %s,%s)
+    '''
+    insert_table_by_batch(sql, realtime_df)
 
 
 @time_cost
@@ -79,12 +75,11 @@ def update_stock_history_data(full=False):
                                               'increase_rate', 'increase_amount', 'exchange_rate']
                 stock_zh_a_hist_df['code'] = code
                 df = stock_zh_a_hist_df[['code', 'date', 'open', 'close', 'high', 'low', 'volume']]
-                with get_connection() as cursor:
-                    sql = '''
-                    replace into stock.ods_stock_history(code, date, open, close, high, low, volume)
-                    values (%s, %s, %s, %s, %s, %s, %s)
-                    '''
-                    cursor.executemany(sql, df.values.tolist())
+                sql = '''
+                replace into stock.ods_stock_history(code, date, open, close, high, low, volume)
+                values (%s, %s, %s, %s, %s, %s, %s)
+                '''
+                insert_table_by_batch(sql, df.values.tolist())
                 time.sleep(0.5)
                 del df
         except Exception as e:
@@ -116,12 +111,11 @@ def get_stock_slope():
     update_min_date = get_max_date(n=5)
     res = res.where(res.date >= update_min_date).toPandas()
     res = res.fillna(0)
-    with get_connection() as cursor:
-        sql = '''
-        replace into stock.dws_stock_slope_history(code, `date`, close, slope, slope_mean, slope_std)
-        values (%s, %s, %s, %s, %s, %s)
-        '''
-        cursor.executemany(sql, res.values.tolist())
+    sql = '''
+    replace into stock.dws_stock_slope_history(code, `date`, close, slope, slope_mean, slope_std)
+    values (%s, %s, %s, %s, %s, %s)
+    '''
+    insert_table_by_batch(sql, res.values.tolist())
 
 
 @time_cost
@@ -157,12 +151,11 @@ def get_stock_slope_rt():
     etf_df.createOrReplaceTempView("df")
     res = spark.sql(spark_sql[1].format(max_rt_date)).toPandas()
     res = res.fillna(0)
-    with get_connection() as cursor:
-        sql = '''
-        replace into stock.dws_stock_slope_realtime(code, `date`, close, slope)
-        values (%s, %s, %s, %s)
-        '''
-        cursor.executemany(sql, res.values.tolist())
+    sql = '''
+    replace into stock.dws_stock_slope_realtime(code, `date`, close, slope)
+    values (%s, %s, %s, %s)
+    '''
+    insert_table_by_batch(sql, res.values.tolist())
 
 
 def run_every_minute():
