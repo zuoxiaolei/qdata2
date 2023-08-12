@@ -158,16 +158,129 @@ def get_stock_slope_rt():
     insert_table_by_batch(sql, res.values.tolist())
 
 
+def update_rt_rpt():
+    sql = '''
+    replace into stock.ads_stock_strategy_rt_rpt(code, name, date, scale, price, slope, last_slope, slope_low, slope_high, `signal`)
+    select t1.code,
+                 t1.name,
+                 t1.date,
+                 t1.scale,
+                 t1.price,
+                 t1.slope,
+                 t2.slope last_slope,
+                 t1.slope_low,
+                 t1.slope_high,
+                 case when t1.slope_low is null then NULL
+                            when t1.slope>=t1.slope_low and t2.slope<=t1.slope_low then 'buy'
+                            when t1.slope>=t1.slope_high then 'sell'
+                            else 'hold'
+                 end as `signal`
+                 
+    from (
+    select t1.code,
+                 t1.date,
+                 t2.name,
+                 t2.scale,
+                 t1.close price,
+                 (t1.slope-t4.slope_mean)/if(t4.slope_std=0, 1e-6, t4.slope_std)  slope,
+                 t5.low slope_low,
+                 t5.high slope_high
+    from stock.dws_stock_slope_realtime t1
+    join stock.dim_stock_basic_info t2 
+      on t1.code=t2.code
+    join stock.dim_stock_slope_standard_param t4 
+       on t1.code=t4.code
+    left join stock.dim_stock_slope_best t5
+      on t1.code=t5.code
+    where t1.date in (select date from etf.dim_etf_trade_date where rn=1)
+    ) t1
+    left join (
+    select code, date, (slope-slope_mean)/if(slope_std=0, 1e-6, slope_std)  slope
+    from stock.dws_stock_slope_history
+    where date in (select date from etf.dim_etf_trade_date where rn=2)
+    )t2
+    on t1.code=t2.code
+    '''
+    with get_connection() as cursor:
+        cursor.execute(sql)
+
+
+def update_history_rpt():
+    sql = '''
+    replace into stock.ads_stock_strategy_history_rpt(code, name, date, scale, price, slope, last_slope, slope_low, slope_high, `signal`)
+    select code,
+                 name,
+                 date,
+                 scale,
+                 price,
+                 slope,
+                 last_slope,
+                 slope_low,
+                 slope_high,
+                 case when slope>=slope_low and slope_low>=last_slope then 'buy'
+                            when slope>=slope_high then 'sell'
+                            else 'hold'
+                    end `signal`
+    from (
+    select t1.code,
+                 t1.name,
+                 t1.date,
+                 t1.scale,
+                 t1.price,
+                 t1.slope,
+                 lag(t1.slope, 1) over(partition by code order by date) last_slope,
+                 t1.slope_low,
+                 t1.slope_high,
+                 null `signal`
+    from (
+    select t1.code,
+                 t1.date,
+                 t2.name,
+                 t2.scale,
+                 t1.close price,
+                 (t1.slope-t4.slope_mean)/if(t4.slope_std=0, 1e-6, t4.slope_std) slope,
+                 t5.low slope_low,
+                 t5.high slope_high
+    from (select * from stock.dws_stock_slope_history 
+                 where date in (select date from etf.dim_etf_trade_date where rn<=2)) t1
+    join stock.dim_stock_basic_info t2 
+      on t1.code=t2.code
+    join stock.dim_stock_slope_standard_param t4 
+       on t1.code=t4.code
+    left join stock.dim_stock_slope_best t5
+      on t1.code=t5.code
+    ) t1
+    )t
+    where date in (select date from etf.dim_etf_trade_date where rn<=1)
+    '''
+    with get_connection() as cursor:
+        cursor.execute(sql)
+
+
+def update_std():
+    sql = '''
+    replace into stock.dim_stock_slope_standard_param(code, slope_mean, slope_std)
+    select code, slope_mean, slope_std
+    from dws_stock_slope_history
+    where date in (select date from etf.dim_etf_trade_date where rn=2)
+    '''
+    with get_connection() as cursor:
+        cursor.execute(sql)
+
+
 def run_every_minute():
     update_stock_realtime()
     get_stock_slope_rt()
+    update_rt_rpt()
 
 
 def run_every_day():
     update_stock_basic_info()
     update_stock_history_data()
     get_stock_slope()
+    update_std()
     get_stock_best_parameter()
+    update_history_rpt()
 
 
 if __name__ == "__main__":
