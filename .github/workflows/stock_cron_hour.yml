@@ -19,7 +19,7 @@ jobs:
     environment:
       name: qdata
       url: https://github.com
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.10

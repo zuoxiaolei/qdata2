@@ -9,7 +9,7 @@ from pyspark.sql.types import StructType, DoubleType
 import time
 import pytz
 
-thread_num = 10
+thread_num = 100
 tz = pytz.timezone('Asia/Shanghai')
 
 
@@ -285,4 +285,7 @@ def run_every_day():
 
 if __name__ == "__main__":
     # run_every_minute()
-    run_every_day()
+    # run_every_day()
+    start_date = get_max_date(n=1)
+    start_date = start_date.replace('-', '')
+    print(start_date)
