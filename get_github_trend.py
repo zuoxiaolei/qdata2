@@ -2,9 +2,10 @@
 import datetime
 from codecs import open
 import requests
-from pyquery import PyQuery
 from mysql_util import insert_table_by_batch
 import emoji
+from bs4 import BeautifulSoup
+
 
 def scrape(language):
     HEADERS = {
@@ -18,21 +19,34 @@ def scrape(language):
     r = requests.get(url, headers=HEADERS)
     assert r.status_code == 200
 
-    d = PyQuery(r.content)
-    items = d('div.Box article.Box-row')
+    soup = BeautifulSoup(r.text, 'html5lib')
+
+    items = soup.find_all("article", class_="Box-row")
     ds = []
     for item in items:
-        i = PyQuery(item)
-        title = i(".lh-condensed a").text()
-        description = emoji.demojize(i("p.col-9").text())
-        url = i(".lh-condensed a").attr("href")
+        title = item.find('h2', class_='lh-condensed').find('a').text.strip().replace("\n", "")
+        description_item = item.find("p")
+        if description_item:
+            description = emoji.demojize(item.find("p", class_='col-9').text.strip())
+        else:
+            description = ''
+        url = item.find('a', class_='tooltipped').get('href').strip()
         url = "https://github.com" + url
-        star_fork = i(".f6 a").text().strip()
-        star, fork = star_fork.split()
-        new_star = i(".f6 svg.octicon-star").parent().text().strip().split()[1]
-        star = int(star.replace(',', ''))
-        fork = int(fork.replace(',', ''))
-        new_star = int(new_star.replace(',', ''))
+        star_fork = list(item.find('div', class_='f6').find_all("a"))
+        if len(star_fork) < 2:
+            star = 0
+            fork = 0
+        else:
+            star = star_fork[0].text.strip()
+            fork = star_fork[1].text.strip()
+            star = int(star.replace(',', ''))
+            fork = int(fork.replace(',', ''))
+        try:
+            new_star = item.find('span', class_='float-sm-right').text.strip()
+            new_star = new_star.split(" ")[0]
+            new_star = int(new_star.replace(',', ''))
+        except:
+            new_star = 0
         ds.append([today_str, language, title, url, description, star, fork, new_star])
     sql = '''
     replace into github.ods_github_trend
@@ -49,6 +63,7 @@ def job():
     scrape('javascript')
     scrape('go')
     scrape('scala')
+
 
 if __name__ == '__main__':
     job()
