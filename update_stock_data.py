@@ -261,7 +261,7 @@ def update_std():
     sql = '''
     replace into stock.dim_stock_slope_standard_param(code, slope_mean, slope_std)
     select code, slope_mean, slope_std
-    from dws_stock_slope_history
+    from stock.dws_stock_slope_history
     where date in (select date from etf.dim_etf_trade_date where rn=2)
     '''
     with get_connection() as cursor:
