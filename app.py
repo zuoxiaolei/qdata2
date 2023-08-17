@@ -99,6 +99,10 @@ def ratation_strategy():
     st.markdown("## 股票轮动策略")
     st.dataframe(df, hide_index=True, width=width, height=height)
 
+    df_rank = mysql_conn.query("""select * from etf.ads_etf_ratation_rank order by date desc limit 20""")
+    st.markdown("## 每天股票动量排名")
+    st.dataframe(df_rank, hide_index=True, width=width, height=height)
+
 
 page_names_to_funcs = {
     "RSRS策略": show_rsrs_strategy,

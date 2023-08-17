@@ -296,6 +296,7 @@ def update_ratation():
         '''
         cursor.execute(sql)
 
+
 def get_rt_rpt():
     sql = '''
     replace into etf.ads_etf_strategy_rt_rpt(code, name, date, scale, price, slope, last_slope, slope_low, slope_high, `signal`)
@@ -343,6 +344,7 @@ def get_rt_rpt():
     '''
     with get_connection() as cursor:
         cursor.execute(sql)
+
 
 def get_history_rpt():
     sql = '''
@@ -397,6 +399,7 @@ def get_history_rpt():
     with get_connection() as cursor:
         cursor.execute(sql)
 
+
 def update_mean_std():
     sql = '''
     replace into etf.dim_etf_slope_standard_param(code, slope_mean, slope_std)
@@ -407,6 +410,45 @@ def update_mean_std():
     with get_connection() as cursor:
         cursor.execute(sql)
 
+
+def update_rotation_rank():
+    sql = '''
+    replace into etf.ads_etf_ratation_rank
+	select code, name, date, price, slope						
+	from (
+						select *
+						from (
+							select code, name, date, price, slope, price_lead,
+						ROW_NUMBER() over(partition by date order by slope desc) rn
+						from (
+						select code, name, date, price, price/price_lag-1 slope, price_lead
+						from (
+						select code, name, date, price,
+						lag(price, 20) over(partition by code order by date) price_lag,
+						lead(price, 1) over(partition by code order by date) price_lead
+						from (
+											select code, name, date, price
+											from etf.ads_etf_strategy_history_rpt
+											where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
+											and date >='2015-07-13' and date in (select date from etf.dim_etf_trade_date where rn>1)
+											union all
+											select code, name, date, price
+											from etf.ads_etf_strategy_rt_rpt
+											where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
+											and date in (select max(date) from etf.dim_etf_trade_date)
+											)t
+						) t
+						where price_lag is not null
+						) t
+						)t
+						) t
+					 where rn=1
+					 order by date desc
+    '''
+    with get_connection() as cursor:
+        cursor.execute(sql)
+
+
 def run_every_minute():
     update_etf_realtime()
     update_trade_date()
@@ -414,6 +456,7 @@ def run_every_minute():
     get_rt_rpt()
     update_ratation()
     send_ratation_message()
+    update_rotation_rank()
 
 
 def run_every_day():
@@ -425,6 +468,7 @@ def run_every_day():
     get_etf_best_parameter()
     get_all_buy_sell_history()
     get_history_rpt()
+
 
 if __name__ == "__main__":
     run_every_minute()
