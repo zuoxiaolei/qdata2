@@ -95,7 +95,7 @@ def ratation_strategy():
     order by end_date desc
     '''
     df = mysql_conn.query(sql, ttl=0)
-    df.columns = ['code', 'name', 'start_price', 'end_price', 'start_date', 'end_date', 'rate']
+    df.columns = ['股票代码', '股票名称', '买入价格', '卖出价格', '买入日期', '卖出日期', '收益率']
     st.markdown("## 股票轮动策略")
     st.dataframe(df, hide_index=True, width=width, height=height)
 
