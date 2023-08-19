@@ -40,7 +40,10 @@ def scrape(language):
             star = star_fork[0].text.strip()
             fork = star_fork[1].text.strip()
             star = int(star.replace(',', ''))
-            fork = int(fork.replace(',', ''))
+            try:
+                fork = int(fork.replace(',', ''))
+            except:
+                fork = 0
         try:
             new_star = item.find('span', class_='float-sm-right').text.strip()
             new_star = new_star.split(" ")[0]
