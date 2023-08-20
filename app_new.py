@@ -105,7 +105,7 @@ def ratation_strategy():
 
 
 page_names_to_funcs = {
-    # "轮动策略": ratation_strategy,
+    "轮动策略": ratation_strategy,
     "RSRS策略": show_rsrs_strategy,
     "设置自选": set_self_select
 }
