@@ -105,8 +105,8 @@ def ratation_strategy():
 
 
 page_names_to_funcs = {
-    "RSRS策略": show_rsrs_strategy,
     "轮动策略": ratation_strategy,
+    "RSRS策略": show_rsrs_strategy,
     "设置自选": set_self_select
 }
 demo_name = st.sidebar.selectbox("选择页面", page_names_to_funcs.keys())
