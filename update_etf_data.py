@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import tqdm
-from get_etf_scale import get_all_fund_scale
+from get_etf_scale import get_all_fund_scale, save_north_flowin
 import akshare as ak
 import easyquotation
 import retrying
@@ -468,6 +468,7 @@ def run_every_day():
     get_etf_best_parameter()
     get_all_buy_sell_history()
     get_history_rpt()
+    save_north_flowin()
 
 
 if __name__ == "__main__":
