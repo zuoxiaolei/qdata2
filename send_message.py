@@ -7,7 +7,7 @@ from mysql_util import get_connection
 tokens = [
     'b0b21688d4694f7999c301386ee90a0c',  # xiaolei
     # '4b4b075475bc41e8a39704008677010f',  # peilin
-    '44b351689de6492ab519a923e4c202da',  # jiayu
+    # '44b351689de6492ab519a923e4c202da',  # jiayu
 ]
 tz = pytz.timezone('Asia/Shanghai')
 now = datetime.now(tz).strftime("%Y-%m-%d")
