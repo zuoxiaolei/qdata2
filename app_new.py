@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 import datetime
@@ -5,6 +6,7 @@ import pymysql
 from sqls import *
 from mysql_util import get_connection
 from streamlit_echarts import st_echarts
+import empyrical
 
 pymysql.install_as_MySQLdb()
 
@@ -40,25 +42,24 @@ def show_rsrs_strategy():
                 {"data": select_stock_df[index_name].tolist(), "type": "line"}
             ],
             "tooltip": {
-                    'trigger': 'axis',
-                    'backgroundColor': 'rgba(32, 33, 36,.7)',
-                    'borderColor': 'rgba(32, 33, 36,0.20)',
-                    'borderWidth': 1,
-                    'textStyle': {
+                'trigger': 'axis',
+                'backgroundColor': 'rgba(32, 33, 36,.7)',
+                'borderColor': 'rgba(32, 33, 36,0.20)',
+                'borderWidth': 1,
+                'textStyle': {
                     'color': '#fff',
                     'fontSize': '12'
-                    },
-                    'axisPointer': {
+                },
+                'axisPointer': {
                     'type': 'cross',
                     'label': {
                         'backgroundColor': '#6a7985'
                     }
-                    },
+                },
             }
         }
         st_echarts(options=options)
-        pass
-    
+
     buy_sell_df = mysql_conn.query(f'''select * 
                                        from etf.ads_etf_buy_sell_history
                                        where code='{code}' order by start_date desc''')
@@ -129,6 +130,75 @@ def ratation_strategy():
         """select * from etf.ads_etf_ratation_rank order by date desc limit 20""")
     st.markdown("## 每天股票动量排名")
     st.dataframe(df_rank, hide_index=True, width=width, height=height)
+
+    st.markdown("## 回测曲线")
+    sql = '''
+    select t3.date, coalesce(t2.profit, 0) profit
+    from (
+    select t1.date, t2.code, t2.name
+    from etf.dim_etf_trade_date t1 
+    join etf.ads_etf_ratation_strategy t2
+    where t1.date>='2015-08-14' and t1.date>=t2.start_date and t1.date<=t2.end_date
+    )t1
+    join (
+    select code, date, next_close/close-1 profit
+    from (
+    select code,
+                 date,
+                 close,
+                 lead(close, 1) over(partition by code order by date) next_close
+    from etf.ods_etf_history
+    where code in ('159941', '518880', '159915', '159633', '516970', '159736',
+                               '512690', '515700', '159937', '159629', '159928', '512480')
+    )t
+    )t2
+    on t1.date=t2.date and t1.code=t2.code
+    right join etf.dim_etf_trade_date t3 
+           on t1.date=t3.date
+    where t3.date>='2015-08-14'
+    order by t3.date
+    '''
+    df_profit = mysql_conn.query(sql)
+    options = {
+        "xAxis": {
+            "type": "category",
+            "data": df_profit['date'].tolist(),
+        },
+        "yAxis": {"type": "value"},
+        "series": [
+            {"data": (df_profit['profit'] + 1).cumprod().tolist(), "type": "line"}
+        ],
+        "tooltip": {
+            'trigger': 'axis',
+            'backgroundColor': 'rgba(32, 33, 36,.7)',
+            'borderColor': 'rgba(32, 33, 36,0.20)',
+            'borderWidth': 1,
+            'textStyle': {
+                'color': '#fff',
+                'fontSize': '12'
+            },
+            'axisPointer': {
+                'type': 'cross',
+                'label': {
+                    'backgroundColor': '#6a7985'
+                }
+            },
+        }
+    }
+    st_echarts(options=options)
+    df_profit.index = pd.to_datetime(df_profit['date'])
+    df_profit_index = calc_indicators(df_profit['profit'])
+    st.dataframe(df_profit_index, hide_index=False)
+
+
+def calc_indicators(df_returns):
+    names = ['累计收益', '年化收益', '最大回撤', '夏普比']
+    accu_returns = empyrical.cum_returns_final(df_returns)
+    annu_returns = empyrical.annual_return(df_returns)
+    max_drawdown = empyrical.max_drawdown(df_returns)
+    sharpe = empyrical.sharpe_ratio(df_returns)
+    all = pd.Series([accu_returns, annu_returns, max_drawdown, sharpe], index=names)
+    return all
 
 
 page_names_to_funcs = {
