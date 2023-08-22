@@ -17,4 +17,4 @@ pyquery
 emoji
 beautifulsoup4==4.11.1
 html5lib==1.1
-
+streamlit-echarts

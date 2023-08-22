@@ -4,6 +4,7 @@ import datetime
 import pymysql
 from sqls import *
 from mysql_util import get_connection
+from streamlit_echarts import st_echarts
 
 pymysql.install_as_MySQLdb()
 
@@ -29,12 +30,35 @@ def show_rsrs_strategy():
     select_stock_df = select_stock_df.drop(['昨天rsrs指标', '买卖信号'], axis=1)
     st.dataframe(select_stock_df, height=height, hide_index=True, width=width)
     if len(select_stock_df) > 0:
-        x = [datetime.datetime.strptime(ele, '%Y-%m-%d') for ele in select_stock_df['日期']]
-        y = select_stock_df[index_name]
-        plt.plot(x, y)
-        plt.xticks(rotation=45)
-        plt.title(code)
-        st.pyplot(plt.gcf())
+        options = {
+            "xAxis": {
+                "type": "category",
+                "data": select_stock_df['日期'].tolist(),
+            },
+            "yAxis": {"type": "value"},
+            "series": [
+                {"data": select_stock_df[index_name].tolist(), "type": "line"}
+            ],
+            "tooltip": {
+                    'trigger': 'axis',
+                    'backgroundColor': 'rgba(32, 33, 36,.7)',
+                    'borderColor': 'rgba(32, 33, 36,0.20)',
+                    'borderWidth': 1,
+                    'textStyle': {
+                    'color': '#fff',
+                    'fontSize': '12'
+                    },
+                    'axisPointer': {
+                    'type': 'cross',
+                    'label': {
+                        'backgroundColor': '#6a7985'
+                    }
+                    },
+            }
+        }
+        st_echarts(options=options)
+        pass
+    
     buy_sell_df = mysql_conn.query(f'''select * 
                                        from etf.ads_etf_buy_sell_history
                                        where code='{code}' order by start_date desc''')
@@ -48,8 +72,10 @@ def show_rsrs_strategy():
     st.dataframe(self_select_df, height=390, hide_index=True)
 
     st.markdown("## rsrs策略推荐")
-    select_date = st.date_input("选择日期", value=datetime.datetime.strptime(max_date, '%Y-%m-%d'), format="YYYY-MM-DD")
-    buy_sell_df = mysql_conn.query(recommand_sql.format(str(select_date), str(select_date)), ttl=ttl)
+    select_date = st.date_input("选择日期", value=datetime.datetime.strptime(
+        max_date, '%Y-%m-%d'), format="YYYY-MM-DD")
+    buy_sell_df = mysql_conn.query(recommand_sql.format(
+        str(select_date), str(select_date)), ttl=ttl)
     buy_sell_df.columns = columns
     st.markdown("### 买入推荐")
     buy_df = buy_sell_df[buy_sell_df["买卖信号"] == 'buy']
@@ -99,7 +125,8 @@ def ratation_strategy():
     st.markdown("## 股票轮动策略")
     st.dataframe(df, hide_index=True, width=width, height=height)
 
-    df_rank = mysql_conn.query("""select * from etf.ads_etf_ratation_rank order by date desc limit 20""")
+    df_rank = mysql_conn.query(
+        """select * from etf.ads_etf_ratation_rank order by date desc limit 20""")
     st.markdown("## 每天股票动量排名")
     st.dataframe(df_rank, hide_index=True, width=width, height=height)
 
