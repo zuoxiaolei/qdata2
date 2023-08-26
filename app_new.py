@@ -159,6 +159,13 @@ def ratation_strategy():
     order by t3.date
     '''
     df_profit = mysql_conn.query(sql)
+    df_profit.index = pd.to_datetime(df_profit['date'])
+    accu_returns, annu_returns, max_drawdown, sharpe = calc_indicators(df_profit['profit'])
+    accu_returns = round(accu_returns, 3)
+    annu_returns = round(annu_returns, 3)
+    max_drawdown = round(max_drawdown, 3)
+    sharpe = round(sharpe, 3)
+
     options = {
         "xAxis": {
             "type": "category",
@@ -183,12 +190,14 @@ def ratation_strategy():
                     'backgroundColor': '#6a7985'
                 }
             },
+        },
+        "title":{
+            'text': f'''累计收益: {accu_returns}\n年化收益: {annu_returns}\n最大回撤:{max_drawdown}\n夏普比:{sharpe}''',
+            'right':'left',
+            'top':'0px',
         }
     }
     st_echarts(options=options)
-    df_profit.index = pd.to_datetime(df_profit['date'])
-    df_profit_index = calc_indicators(df_profit['profit'])
-    st.dataframe(df_profit_index, hide_index=False)
 
 
 def calc_indicators(df_returns):
@@ -197,8 +206,7 @@ def calc_indicators(df_returns):
     annu_returns = empyrical.annual_return(df_returns)
     max_drawdown = empyrical.max_drawdown(df_returns)
     sharpe = empyrical.sharpe_ratio(df_returns)
-    all = pd.Series([accu_returns, annu_returns, max_drawdown, sharpe], index=names)
-    return all
+    return accu_returns, annu_returns, max_drawdown, sharpe
 
 
 page_names_to_funcs = {
