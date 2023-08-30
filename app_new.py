@@ -191,10 +191,10 @@ def ratation_strategy():
                 }
             },
         },
-        "title":{
+        "title": {
             'text': f'''累计收益: {accu_returns}\n年化收益: {annu_returns}\n最大回撤:{max_drawdown}\n夏普比:{sharpe}''',
-            'right':'left',
-            'top':'0px',
+            'right': 'left',
+            'top': '0px',
         }
     }
     st_echarts(options=options)
@@ -211,7 +211,7 @@ def calc_indicators(df_returns):
 
 page_names_to_funcs = {
     "轮动策略": ratation_strategy,
-    "RSRS策略": show_rsrs_strategy,
+    # "RSRS策略": show_rsrs_strategy,
     "设置自选": set_self_select
 }
 demo_name = st.sidebar.selectbox("选择页面", page_names_to_funcs.keys())
