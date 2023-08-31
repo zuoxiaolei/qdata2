@@ -149,7 +149,7 @@ def ratation_strategy():
                  lead(close, 1) over(partition by code order by date) next_close
     from etf.ods_etf_history
     where code in ('159941', '518880', '159915', '159633', '516970', '159736',
-                               '512690', '515700', '159937', '159629', '159928', '512480')
+                               '512690', '515700', '159629', '159928', '512480')
     )t
     )t2
     on t1.date=t2.date and t1.code=t2.code

@@ -274,12 +274,12 @@ def update_ratation():
                   from (
                             select code, name, date, price
                             from etf.ads_etf_strategy_history_rpt
-                            where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
+                            where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159629', '159928', '512480')
                             and date >='2015-07-13' and date in (select date from etf.dim_etf_trade_date where rn>1)
                             union all
                             select code, name, date, price
                             from etf.ads_etf_strategy_rt_rpt
-                            where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
+                            where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159629', '159928', '512480')
                             and date in (select max(date) from etf.dim_etf_trade_date)
                             )t
                   ) t
@@ -429,12 +429,12 @@ def update_rotation_rank():
 						from (
 											select code, name, date, price
 											from etf.ads_etf_strategy_history_rpt
-											where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
+											where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159629', '159928', '512480')
 											and date >='2015-07-13' and date in (select date from etf.dim_etf_trade_date where rn>1)
 											union all
 											select code, name, date, price
 											from etf.ads_etf_strategy_rt_rpt
-											where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159937', '159629', '159928', '512480')
+											where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159629', '159928', '512480')
 											and date in (select max(date) from etf.dim_etf_trade_date)
 											)t
 						) t
