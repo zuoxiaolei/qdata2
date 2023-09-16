@@ -53,6 +53,10 @@ def set_self_select():
     st.dataframe(select_df, hide_index=True, width=400)
 
 
+def ratation_reverse_strategy():
+    pass
+
+
 def ratation_strategy():
     sql = '''
     select * 
@@ -72,6 +76,8 @@ def ratation_strategy():
     st.dataframe(df_rank, hide_index=True, width=width, height=height)
 
     st.markdown("## 回测曲线")
+    max_date = df['卖出日期'].max()
+    min_date = df['买入日期'].min()
     sql = '''
     select t3.date, coalesce(t2.profit, 0) profit
     from (
@@ -99,6 +105,12 @@ def ratation_strategy():
     order by t3.date
     '''
     df_profit = mysql_conn.query(sql)
+    options = list(range(int(min_date[:4]), int(max_date[:4]) + 1))[::-1]
+    options = [str(ele) for ele in options]
+    options = ['all'] + options
+    select_year = st.selectbox(label='年份', options=options)
+    if select_year != 'all':
+        df_profit = df_profit[df_profit.date.map(lambda x: x[:4] == select_year)]
     df_profit.index = pd.to_datetime(df_profit['date'])
     accu_returns, annu_returns, max_drawdown, sharpe = calc_indicators(df_profit['profit'])
     accu_returns = round(accu_returns, 3)
