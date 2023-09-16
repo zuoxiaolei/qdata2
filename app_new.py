@@ -24,68 +24,6 @@ mysql_conn = st.experimental_connection('mysql', type='sql', ttl=ttl)
 max_date = mysql_conn.query(max_date_sql, ttl=ttl).values.tolist()[0][0]
 
 
-def show_rsrs_strategy():
-    code = st.text_input('股代码/ETF基金代码', '159915')
-    select_stock_df = mysql_conn.query(
-        stock_index_last.format(code, max_date, code, max_date, code, max_date, code, max_date), ttl=ttl)
-    select_stock_df.columns = columns
-    select_stock_df = select_stock_df.drop(['昨天rsrs指标', '买卖信号'], axis=1)
-    st.dataframe(select_stock_df, height=height, hide_index=True, width=width)
-    if len(select_stock_df) > 0:
-        options = {
-            "xAxis": {
-                "type": "category",
-                "data": select_stock_df['日期'].tolist(),
-            },
-            "yAxis": {"type": "value"},
-            "series": [
-                {"data": select_stock_df[index_name].tolist(), "type": "line"}
-            ],
-            "tooltip": {
-                'trigger': 'axis',
-                'backgroundColor': 'rgba(32, 33, 36,.7)',
-                'borderColor': 'rgba(32, 33, 36,0.20)',
-                'borderWidth': 1,
-                'textStyle': {
-                    'color': '#fff',
-                    'fontSize': '12'
-                },
-                'axisPointer': {
-                    'type': 'cross',
-                    'label': {
-                        'backgroundColor': '#6a7985'
-                    }
-                },
-            }
-        }
-        st_echarts(options=options)
-
-    buy_sell_df = mysql_conn.query(f'''select * 
-                                       from etf.ads_etf_buy_sell_history
-                                       where code='{code}' order by start_date desc''')
-    st.markdown("## 历史买卖情况")
-    st.dataframe(buy_sell_df, hide_index=True, width=width)
-
-    st.markdown("## 自选股票/基金")
-    self_select_df = mysql_conn.query(self_select_sql, ttl=ttl)
-    self_select_df.columns = columns
-    self_select_df = self_select_df.sort_values(index_name)
-    st.dataframe(self_select_df, height=390, hide_index=True)
-
-    st.markdown("## rsrs策略推荐")
-    select_date = st.date_input("选择日期", value=datetime.datetime.strptime(
-        max_date, '%Y-%m-%d'), format="YYYY-MM-DD")
-    buy_sell_df = mysql_conn.query(recommand_sql.format(
-        str(select_date), str(select_date)), ttl=ttl)
-    buy_sell_df.columns = columns
-    st.markdown("### 买入推荐")
-    buy_df = buy_sell_df[buy_sell_df["买卖信号"] == 'buy']
-    st.dataframe(buy_df, hide_index=True)
-    st.markdown("### 卖出推荐")
-    sell_df = buy_sell_df[buy_sell_df["买卖信号"] == 'sell']
-    st.dataframe(sell_df, hide_index=True)
-
-
 def set_self_select():
     st.write(
         """<style>
@@ -201,6 +139,17 @@ def ratation_strategy():
     }
     st_echarts(options=options)
 
+    st.markdown("## 策略每年累计收益")
+    sql = '''
+    select substr(end_date, 1, 4) year_code, concat(round(sum(rate)*100, 2), '%') rate
+    from etf.ads_etf_ratation_strategy
+    group by substr(end_date, 1, 4)
+    order by year_code desc
+    '''
+    df_year_profit = mysql_conn.query(sql)
+    df_year_profit.columns = ['年份', '总收益']
+    st.dataframe(df_year_profit, hide_index=True, width=width)
+
 
 def calc_indicators(df_returns):
     accu_returns = empyrical.cum_returns_final(df_returns)
@@ -212,7 +161,6 @@ def calc_indicators(df_returns):
 
 page_names_to_funcs = {
     "轮动策略": ratation_strategy,
-    # "RSRS策略": show_rsrs_strategy,
     "设置自选": set_self_select
 }
 demo_name = st.sidebar.selectbox("选择页面", page_names_to_funcs.keys())
