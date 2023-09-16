@@ -124,6 +124,8 @@ def ratation_strategy():
     df = mysql_conn.query(sql, ttl=0)
     df.columns = ['股票代码', '股票名称', '买入价格', '卖出价格', '买入日期', '卖出日期', '收益率']
     st.markdown("## 股票轮动策略")
+    df['收益率'] = df['收益率'].map(lambda x: str(round(x * 100, 2)) + "%")
+
     st.dataframe(df, hide_index=True, width=width, height=height)
 
     df_rank = mysql_conn.query(
@@ -201,7 +203,6 @@ def ratation_strategy():
 
 
 def calc_indicators(df_returns):
-    names = ['累计收益', '年化收益', '最大回撤', '夏普比']
     accu_returns = empyrical.cum_returns_final(df_returns)
     annu_returns = empyrical.annual_return(df_returns)
     max_drawdown = empyrical.max_drawdown(df_returns)
