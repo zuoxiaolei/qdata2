@@ -248,51 +248,90 @@ def update_ratation():
     with get_connection() as cursor:
         sql = '''
         replace into etf.ads_etf_ratation_strategy
-        select code, name, start_price, end_price, start_date, end_date, (end_price_lead / start_price - 1) rate
-        from (select code,
-                     name, date, price, slope, rn1-rn2 rn,
-                     first_value(price) over(partition by code, rn1-rn2 order by date) start_price,
-                     first_value(price) over(partition by code, rn1-rn2 order by date desc) end_price,
-                     first_value(date) over(partition by code, rn1-rn2 order by date) start_date,
-                     first_value(date) over(partition by code, rn1-rn2 order by date desc) end_date,
-                     first_value(price_lead) over(partition by code, rn1-rn2 order by date desc) end_price_lead
-              from (
-                  select *,
-                  row_number() over(order by date) rn1, row_number() over(partition by code order by date) rn2
-                  from (
-                  select *,  lag(rn, 1) over(partition by code order by date) last_rn,
-                                lag(rn, 2) over(partition by code order by date) last_rn2
-                  from (
-                    select code, name, date, price, slope, price_lead,
-                  ROW_NUMBER() over(partition by date order by slope desc) rn
-                  from (
-                  select code, name, date, price, price/price_lag-1 slope, price_lead
-                  from (
-                  select code, name, date, price,
-                  lag(price, 20) over(partition by code order by date) price_lag,
-                  lead(price, 1) over(partition by code order by date) price_lead
-                  from (
-                            select code, name, date, price
-                            from etf.ads_etf_strategy_history_rpt
-                            where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159629', '159928', '512480')
-                            and date >='2015-07-13' and date in (select date from etf.dim_etf_trade_date where rn>1)
-                            union all
-                            select code, name, date, price
-                            from etf.ads_etf_strategy_rt_rpt
-                            where code in ('159941', '518880', '159915', '159633', '516970', '159736', '512690', '515700', '159629', '159928', '512480')
-                            and date in (select max(date) from etf.dim_etf_trade_date)
-                            )t
-                  ) t
-                  where price_lag is not null
-                  ) t
-                  )t
-                  ) t
-                 where rn=1 and last_rn=1 and last_rn2=1
-                  ) t
+        SELECT code, name, start_price, end_price, start_date
+            , end_date, end_price_lead / start_price - 1 AS rate
+        FROM (
+            SELECT code, name, date, price, slope
+                , rn1 - rn2 AS rn
+                , first_value(price) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date) AS start_price
+                , first_value(price) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date DESC) AS end_price
+                , first_value(date) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date) AS start_date
+                , first_value(date) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date DESC) AS end_date
+                , first_value(price_lead) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date DESC) AS end_price_lead
+            FROM (
+                SELECT *, row_number() OVER (PARTITION BY code ORDER BY date) AS rn2
+                FROM (
+                    SELECT *, lag(rn, 1) OVER (PARTITION BY code ORDER BY date) AS last_rn
+                        , lag(rn, 2) OVER (PARTITION BY code ORDER BY date) AS last_rn2
+                        , row_number() OVER (ORDER BY date) AS rn1
+                    FROM (
+                        SELECT code, name, date, price, slope, date_lead
+                            , price_lead, ROW_NUMBER() OVER (PARTITION BY date ORDER BY slope DESC) AS rn
+                        FROM (
+                            SELECT code, name, date, price
+                                , price / price_lag - 1 AS slope, price_lead, date_lead
+                            FROM (
+                                SELECT code, name, date, price
+                                    , lag(price, 20) OVER (PARTITION BY code ORDER BY date) AS price_lag
+                                    , lead(price, 1) OVER (PARTITION BY code ORDER BY date) AS price_lead
+                                    , lead(date, 1) OVER (PARTITION BY code ORDER BY date) AS date_lead
+                                    
+                                FROM (
+                                    SELECT code, name, date, price
+                                    FROM etf.ads_etf_strategy_history_rpt
+                                    WHERE code IN (
+                                            '159941', 
+                                            '518880', 
+                                            '159915', 
+                                            '159633', 
+                                            '516970', 
+                                            '159736', 
+                                            '512690', 
+                                            '515700', 
+                                            '159629', 
+                                            '159928', 
+                                            '512480'
+                                        )
+                                        AND date >= '2015-07-13'
+                                        AND date IN (
+                                            SELECT date
+                                            FROM etf.dim_etf_trade_date
+                                            WHERE rn > 1
+                                        )
+                                    UNION ALL
+                                    SELECT code, name, date, price
+                                    FROM etf.ads_etf_strategy_rt_rpt
+                                    WHERE code IN (
+                                            '159941', 
+                                            '518880', 
+                                            '159915', 
+                                            '159633', 
+                                            '516970', 
+                                            '159736', 
+                                            '512690', 
+                                            '515700', 
+                                            '159629', 
+                                            '159928', 
+                                            '512480'
+                                        )
+                                        AND date IN (
+                                            SELECT max(date)
+                                            FROM etf.dim_etf_trade_date
+                                        )
+                                ) t
+                            ) t
+                            WHERE price_lag IS NOT NULL
+                        ) t
+                    ) t
+                ) t
+                WHERE rn = 1
+                    AND last_rn = 1
+        -- 			AND last_rn2 = 1
+                order by date desc
+            ) t
         ) t
-        GROUP BY code, name, start_price, end_price, start_date, end_date,  (end_price_lead / start_price - 1)
-        order by end_date desc 
-        limit 10
+        GROUP BY code, name, start_price, end_price, start_date, end_date, end_price_lead / start_price - 1
+        ORDER BY end_date DESC
         '''
         cursor.execute(sql)
 
