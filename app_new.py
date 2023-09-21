@@ -94,7 +94,7 @@ def ratation_strategy():
                  close,
                  lead(close, 1) over(partition by code order by date) next_close
     from etf.ods_etf_history
-    where code in (select disinct code from etf.etf.ads_etf_ratation_strategy)
+    where code in (select disinct code from etf.ads_etf_ratation_strategy)
     )t
     )t2
     on t1.date=t2.date and t1.code=t2.code
