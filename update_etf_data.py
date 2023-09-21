@@ -308,6 +308,7 @@ def update_ratation():
         ) t
         GROUP BY code, name, start_price, end_price, start_date, end_date, end_price_lead / start_price - 1
         ORDER BY end_date DESC
+	limit 10
         '''
         cursor.execute(sql)
 
