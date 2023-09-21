@@ -252,18 +252,20 @@ def update_ratation():
             , end_date, end_price_lead / start_price - 1 AS rate
         FROM (
             SELECT code, name, date, price, slope
-                , rn1 - rn2 AS rn
+                , rn1 - rn2 rn_sub
                 , first_value(price) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date) AS start_price
                 , first_value(price) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date DESC) AS end_price
                 , first_value(date) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date) AS start_date
                 , first_value(date) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date DESC) AS end_date
                 , first_value(price_lead) OVER (PARTITION BY code, rn1 - rn2 ORDER BY date DESC) AS end_price_lead
+                , rn 
+                , last_rn
             FROM (
-                SELECT *, row_number() OVER (PARTITION BY code ORDER BY date) AS rn2
+                SELECT *, row_number() OVER (PARTITION BY code, rn ORDER BY date) AS rn2,
+                        row_number() OVER (ORDER BY date) AS rn1
                 FROM (
                     SELECT *, lag(rn, 1) OVER (PARTITION BY code ORDER BY date) AS last_rn
                         , lag(rn, 2) OVER (PARTITION BY code ORDER BY date) AS last_rn2
-                        , row_number() OVER (ORDER BY date) AS rn1
                     FROM (
                         SELECT code, name, date, price, slope, date_lead
                             , price_lead, ROW_NUMBER() OVER (PARTITION BY date ORDER BY slope DESC) AS rn
@@ -325,10 +327,8 @@ def update_ratation():
                     ) t
                 ) t
                 WHERE rn = 1
-                    AND last_rn = 1
-        -- 			AND last_rn2 = 1
-                order by date desc
             ) t
+        where last_rn = 1
         ) t
         GROUP BY code, name, start_price, end_price, start_date, end_date, end_price_lead / start_price - 1
         ORDER BY end_date DESC
