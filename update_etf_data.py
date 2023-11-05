@@ -10,7 +10,8 @@ from slope_strategy import load_spark_sql, get_spark, get_ols, get_etf_best_para
 from pyspark.sql.types import StructType, DoubleType
 import time
 import pytz
-
+import pandas as pd
+import numpy as np
 thread_num = 10
 tz = pytz.timezone('Asia/Shanghai')
 
@@ -464,6 +465,47 @@ def update_rotation_rank():
     with get_connection() as cursor:
         cursor.execute(sql)
 
+def get_portfolio_report():
+    sql = '''
+    select code, date, close, (close-close_lag1)/close_lag1*100 rate
+    from (
+    select code, date, close, lag(close, 1) over (partition by code order by date) close_lag1
+    from (
+    select *, count(1) over (partition by date) cnt
+    from etf.ods_etf_history
+    where code in ('518880', '512890', '159941')
+    ) t 
+    where cnt=3 and date>='2019-01-18'
+    )t
+    where close_lag1 is not null
+    order by date
+    '''
+    with get_connection() as cursor:
+        cursor.execute(sql)
+        data = cursor.fetchall()
+    df = pd.DataFrame(data, columns=['code', 'date', 'close', 'rate'])
+    spark = get_spark()
+    spark_df = spark.createDataFrame(df)
+    spark_df = spark_df.groupby("date").pivot("code").mean("rate")
+    pandas_df = spark_df.toPandas()
+    pandas_df = pandas_df.sort_values(by='date')
+    pandas_df.index = pandas_df['date']
+    pandas_df = pandas_df.drop(['date'], axis=1)
+    weight_dict = {'518880': 0.4997765583588797,
+                   '512890': 0.29836978509792955,
+                   '159941': 0.20185365654319073}
+    columns = ['518880', '512890', '159941']
+    weight_list = [weight_dict[k] for k in columns]
+    pandas_df = pandas_df[columns]
+    pandas_df['rate'] = pandas_df.apply(lambda x: np.dot(weight_list, x.tolist()), axis=1)
+    pandas_df['rate_cum'] = pandas_df['rate'] / 100 + 1
+    pandas_df['rate_cum'] = pandas_df['rate_cum'].cumprod()
+    data = list(zip(pandas_df.index.tolist(), pandas_df["rate_cum"].tolist()))
+    sql = '''
+    replace into etf.ads_eft_portfolio_rpt
+    values (%s, %s)
+    '''
+    insert_table_by_batch(sql, data)
 
 def run_every_minute():
     update_etf_realtime()
@@ -473,7 +515,7 @@ def run_every_minute():
     update_ratation()
     send_ratation_message()
     update_rotation_rank()
-
+    get_portfolio_report()
 
 def run_every_day():
     update_etf_scale()

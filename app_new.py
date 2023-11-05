@@ -53,8 +53,57 @@ def set_self_select():
     st.dataframe(select_df, hide_index=True, width=400)
 
 
-def ratation_reverse_strategy():
-    pass
+def portfolio_strategy():
+    weight_data = [['518880', '黄金ETF', 0.4997765583588797],
+                   ['512890', '地波红利', 0.29836978509792955],
+                   ['159941', '纳指ETF', 0.2018536565431907],
+                   ]
+    df_weight = pd.DataFrame(weight_data, columns=['code', 'name', 'weight'])
+    st.markdown("## 组合投资策略")
+    st.dataframe(df_weight, hide_index=True, width=width, height=150)
+
+    # 筛选时间
+    sql = '''
+    select date, rate 
+    from etf.ads_eft_portfolio_rpt
+    order by date
+    '''
+    df_portfolio = mysql_conn.query(sql, ttl=0)
+    min_date = df_portfolio.date.min()
+    max_date = df_portfolio.date.max()
+    options = list(range(int(min_date[:4]), int(max_date[:4]) + 1))[::-1]
+    options = [str(ele) for ele in options]
+    options = ['all'] + options
+    select_year = st.selectbox(label='年份', options=options)
+    if select_year != 'all':
+        df_portfolio = df_portfolio[df_portfolio.date.map(lambda x: x[:4] == select_year)]
+    options = {
+        "xAxis": {
+            "type": "category",
+            "data": df_portfolio['date'].tolist(),
+        },
+        "yAxis": {"type": "value"},
+        "series": [
+            {"data": df_portfolio['rate'].tolist(), "type": "line"}
+        ],
+        "tooltip": {
+            'trigger': 'axis',
+            'backgroundColor': 'rgba(32, 33, 36,.7)',
+            'borderColor': 'rgba(32, 33, 36,0.20)',
+            'borderWidth': 1,
+            'textStyle': {
+                'color': '#fff',
+                'fontSize': '12'
+            },
+            'axisPointer': {
+                'type': 'cross',
+                'label': {
+                    'backgroundColor': '#6a7985'
+                }
+            },
+        },
+    }
+    st_echarts(options=options)
 
 
 def ratation_strategy():
@@ -172,7 +221,8 @@ def calc_indicators(df_returns):
 
 page_names_to_funcs = {
     "轮动策略": ratation_strategy,
-    "设置自选": set_self_select
+    "设置自选": set_self_select,
+    "组和投资": portfolio_strategy
 }
 demo_name = st.sidebar.selectbox("选择页面", page_names_to_funcs.keys())
 page_names_to_funcs[demo_name]()
