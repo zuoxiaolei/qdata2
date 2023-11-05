@@ -77,6 +77,13 @@ def portfolio_strategy():
     select_year = st.selectbox(label='年份', options=options)
     if select_year != 'all':
         df_portfolio = df_portfolio[df_portfolio.date.map(lambda x: x[:4] == select_year)]
+    df_portfolio.index = pd.to_datetime(df_portfolio['date'])
+    df_portfolio["profit"] = df_portfolio["rate"]/df_portfolio["rate"].shift() - 1
+    accu_returns, annu_returns, max_drawdown, sharpe = calc_indicators(df_portfolio['profit'])
+    accu_returns = round(accu_returns, 3)
+    annu_returns = round(annu_returns, 3)
+    max_drawdown = round(max_drawdown, 3)
+    sharpe = round(sharpe, 3)
     options = {
         "xAxis": {
             "type": "category",
@@ -102,6 +109,11 @@ def portfolio_strategy():
                 }
             },
         },
+        "title": {
+            'text': f'''累计收益: {accu_returns}\n年化收益: {annu_returns}\n最大回撤:{max_drawdown}\n夏普比:{sharpe}''',
+            'right': 'left',
+            'top': '0px',
+        }
     }
     st_echarts(options=options)
 
