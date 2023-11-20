@@ -233,8 +233,8 @@ def calc_indicators(df_returns):
 
 page_names_to_funcs = {
     "轮动策略": ratation_strategy,
+    "组合投资": portfolio_strategy,
     "设置自选": set_self_select,
-    "组和投资": portfolio_strategy
 }
 demo_name = st.sidebar.selectbox("选择页面", page_names_to_funcs.keys())
 page_names_to_funcs[demo_name]()
