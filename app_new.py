@@ -116,6 +116,12 @@ def portfolio_strategy():
     }
     st_echarts(options=options)
 
+    df_portfolio["profit"] = df_portfolio["profit"].map(lambda x: str(round(100*x, 3))+"%")
+    df_portfolio = df_portfolio[['date', 'profit']]
+    df_portfolio = df_portfolio.sort_values("date", ascending=False)
+    df_portfolio.columns = ['日期', '收益率']
+    df_portfolio = df_portfolio.head(100)
+    st.dataframe(df_portfolio, hide_index=True, width=width, height=height)
 
 def ratation_strategy():
     sql = '''
