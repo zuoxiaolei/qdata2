@@ -1,5 +1,5 @@
 max_date_sql = '''
-                select date 
-                from etf.dim_etf_trade_date
+                select max(date) date 
+                from etf.ods_etf_history
                 where rn=1
                '''
