@@ -1,7 +1,6 @@
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
-import datetime
+
 import pymysql
 from sqls import *
 from mysql_util import get_connection
@@ -24,33 +23,33 @@ mysql_conn = st.experimental_connection('mysql', type='sql', ttl=ttl)
 max_date = mysql_conn.query(max_date_sql, ttl=ttl).values.tolist()[0][0]
 
 
-def set_self_select():
-    st.write(
-        """<style>
-        [data-testid="stHorizontalBlock"] {
-            align-items: flex-end;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        code = st.text_input('添加或删除自选的股代码/ETF基金代码')
-    with col2:
-        select_type = st.selectbox("添加/删除", options=['添加', '删除'])
-    with col3:
-        button_status = st.button("提交")
-        if button_status:
-            if select_type == '添加':
-                with get_connection() as cursor:
-                    cursor.execute(update_subscribe_sql.format(code, code))
-            elif select_type == '删除':
-                with get_connection() as cursor:
-                    cursor.execute(delete_subscribe_sql.format(code))
-    select_df = mysql_conn.query(select_stock_sql, ttl=0)
-    select_df.columns = ['股票代码', '股票名称']
-    st.dataframe(select_df, hide_index=True, width=400)
+# def set_self_select():
+#     st.write(
+#         """<style>
+#         [data-testid="stHorizontalBlock"] {
+#             align-items: flex-end;
+#         }
+#         </style>
+#         """,
+#         unsafe_allow_html=True
+#     )
+#     col1, col2, col3 = st.columns([2, 1, 1])
+#     with col1:
+#         code = st.text_input('添加或删除自选的股代码/ETF基金代码')
+#     with col2:
+#         select_type = st.selectbox("添加/删除", options=['添加', '删除'])
+#     with col3:
+#         button_status = st.button("提交")
+#         if button_status:
+#             if select_type == '添加':
+#                 with get_connection() as cursor:
+#                     cursor.execute(update_subscribe_sql.format(code, code))
+#             elif select_type == '删除':
+#                 with get_connection() as cursor:
+#                     cursor.execute(delete_subscribe_sql.format(code))
+#     select_df = mysql_conn.query(select_stock_sql, ttl=0)
+#     select_df.columns = ['股票代码', '股票名称']
+#     st.dataframe(select_df, hide_index=True, width=400)
 
 
 def portfolio_strategy():
@@ -234,7 +233,7 @@ def calc_indicators(df_returns):
 page_names_to_funcs = {
     "轮动策略": ratation_strategy,
     "组合投资": portfolio_strategy,
-    "设置自选": set_self_select,
+    # "设置自选": set_self_select,
 }
 demo_name = st.sidebar.selectbox("选择页面", page_names_to_funcs.keys())
 page_names_to_funcs[demo_name]()
