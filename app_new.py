@@ -77,7 +77,7 @@ def portfolio_strategy():
     if select_year != 'all':
         df_portfolio = df_portfolio[df_portfolio.date.map(lambda x: x[:4] == select_year)]
     df_portfolio.index = pd.to_datetime(df_portfolio['date'])
-    df_portfolio["profit"] = df_portfolio["rate"]/df_portfolio["rate"].shift() - 1
+    df_portfolio["profit"] = df_portfolio["rate"] / df_portfolio["rate"].shift() - 1
     accu_returns, annu_returns, max_drawdown, sharpe = calc_indicators(df_portfolio['profit'])
     accu_returns = round(accu_returns, 3)
     annu_returns = round(annu_returns, 3)
@@ -117,12 +117,24 @@ def portfolio_strategy():
     st_echarts(options=options)
 
     df_portfolio = df_portfolio.reset_index(drop=True)
-    df_portfolio["profit"] = df_portfolio["profit"].map(lambda x: str(round(100*x, 3))+"%")
-    df_portfolio = df_portfolio[['date', 'profit']]
-    df_portfolio = df_portfolio.sort_values("date", ascending=False)
-    df_portfolio.columns = ['日期', '收益率']
-    df_portfolio = df_portfolio.head(100)
-    st.dataframe(df_portfolio, hide_index=True, width=width, height=height)
+    df_portfolio["profit_str"] = df_portfolio["profit"].map(lambda x: str(round(100 * x, 3)) + "%")
+
+    df_portfolio_daily = df_portfolio[['date', 'profit_str']]
+    df_portfolio_daily = df_portfolio_daily.sort_values("date", ascending=False)
+    df_portfolio_daily.columns = ['日期', '收益率']
+    df_portfolio_daily = df_portfolio_daily.head(100)
+
+    df_portfolio_month = df_portfolio
+    df_portfolio_month["月份"] = df_portfolio["date"].map(lambda x: str(x[:7]))
+    df_portfolio_month = df_portfolio_month.groupby("月份", as_index=False)["profit"].sum()
+    df_portfolio_month["profit_str"] = df_portfolio_month["profit"].map(lambda x: str(round(100 * x, 3)) + "%")
+    df_portfolio_month = df_portfolio_month[['月份', "profit_str"]]
+    df_portfolio_month.columns = ['月份', '收益率']
+    df_portfolio_month = df_portfolio_month.sort_values(by="月份", ascending=False)
+    st.markdown("# 每月收益率分析")
+    st.dataframe(df_portfolio_month, hide_index=True, width=width, height=300)
+    st.markdown("# 每日收益率分析")
+    st.dataframe(df_portfolio_daily, hide_index=True, width=width, height=300)
 
 def ratation_strategy():
     sql = '''
@@ -238,9 +250,8 @@ def calc_indicators(df_returns):
 
 
 page_names_to_funcs = {
-    "轮动策略": ratation_strategy,
     "组合投资": portfolio_strategy,
-    # "设置自选": set_self_select,
+    "轮动策略": ratation_strategy,
 }
 demo_name = st.sidebar.selectbox("选择页面", page_names_to_funcs.keys())
 page_names_to_funcs[demo_name]()
