@@ -23,35 +23,6 @@ mysql_conn = st.experimental_connection('mysql', type='sql', ttl=ttl)
 max_date = mysql_conn.query(max_date_sql, ttl=ttl).values.tolist()[0][0]
 
 
-# def set_self_select():
-#     st.write(
-#         """<style>
-#         [data-testid="stHorizontalBlock"] {
-#             align-items: flex-end;
-#         }
-#         </style>
-#         """,
-#         unsafe_allow_html=True
-#     )
-#     col1, col2, col3 = st.columns([2, 1, 1])
-#     with col1:
-#         code = st.text_input('添加或删除自选的股代码/ETF基金代码')
-#     with col2:
-#         select_type = st.selectbox("添加/删除", options=['添加', '删除'])
-#     with col3:
-#         button_status = st.button("提交")
-#         if button_status:
-#             if select_type == '添加':
-#                 with get_connection() as cursor:
-#                     cursor.execute(update_subscribe_sql.format(code, code))
-#             elif select_type == '删除':
-#                 with get_connection() as cursor:
-#                     cursor.execute(delete_subscribe_sql.format(code))
-#     select_df = mysql_conn.query(select_stock_sql, ttl=0)
-#     select_df.columns = ['股票代码', '股票名称']
-#     st.dataframe(select_df, hide_index=True, width=400)
-
-
 def portfolio_strategy():
     weight_data = [['518880', '黄金ETF', 0.4997765583588797],
                    ['512890', '地波红利', 0.29836978509792955],
@@ -135,6 +106,102 @@ def portfolio_strategy():
     st.dataframe(df_portfolio_month, hide_index=True, width=width, height=300)
     st.markdown("# 每日收益率分析")
     st.dataframe(df_portfolio_daily, hide_index=True, width=width, height=300)
+
+
+def linear_portfolio_strategy():
+    weight_data = [['159937', '黄金ETF', 0.4320856256733982],
+                   ['513500', '标普500ETF', 0.3153382308936174],
+                   ['510880', '红利ETF', 0.14418537298909576],
+                   ['159930', '能源ETF', 0.1083907704438887],
+                   ]
+    df_weight = pd.DataFrame(weight_data, columns=['code', 'name', 'weight'])
+    st.markdown("## 线性回归组合投资策略")
+    st.dataframe(df_weight, hide_index=True, width=width, height=180)
+
+    # 筛选时间
+    sql = '''
+    select date, sum((case when code='159937' then 0.4320856256733982
+                                         when code='513500' then 0.3153382308936174
+                                         when code='510880' then 0.14418537298909576
+                                         when code='159930' then 0.1083907704438887 end)*(close/first_close)) rate
+    from (
+    select code, date, close,
+               first_value(close) over (partition by code order by date) first_close
+    from etf.ods_etf_history
+    where code in ('159937', '513500', '510880', '159930') and date>= '2015-01-05'
+    ) t
+    group by date
+    order by date
+    '''
+    df_portfolio = mysql_conn.query(sql, ttl=0)
+    min_date = df_portfolio.date.min()
+    max_date = df_portfolio.date.max()
+    options = list(range(int(min_date[:4]), int(max_date[:4]) + 1))[::-1]
+    options = [str(ele) for ele in options]
+    options = ['all'] + options
+    select_year = st.selectbox(label='年份', options=options)
+    if select_year != 'all':
+        df_portfolio = df_portfolio[df_portfolio.date.map(lambda x: x[:4] == select_year)]
+    df_portfolio.index = pd.to_datetime(df_portfolio['date'])
+    df_portfolio["profit"] = df_portfolio["rate"] / df_portfolio["rate"].shift() - 1
+    accu_returns, annu_returns, max_drawdown, sharpe = calc_indicators(df_portfolio['profit'])
+    accu_returns = round(accu_returns, 3)
+    annu_returns = round(annu_returns, 3)
+    max_drawdown = round(max_drawdown, 3)
+    sharpe = round(sharpe, 3)
+    options = {
+        "xAxis": {
+            "type": "category",
+            "data": df_portfolio['date'].tolist(),
+        },
+        "yAxis": {"type": "value"},
+        "series": [
+            {"data": df_portfolio['rate'].tolist(), "type": "line"}
+        ],
+        "tooltip": {
+            'trigger': 'axis',
+            'backgroundColor': 'rgba(32, 33, 36,.7)',
+            'borderColor': 'rgba(32, 33, 36,0.20)',
+            'borderWidth': 1,
+            'textStyle': {
+                'color': '#fff',
+                'fontSize': '12'
+            },
+            'axisPointer': {
+                'type': 'cross',
+                'label': {
+                    'backgroundColor': '#6a7985'
+                }
+            },
+        },
+        "title": {
+            'text': f'''累计收益: {accu_returns}\n年化收益: {annu_returns}\n最大回撤:{max_drawdown}\n夏普比:{sharpe}''',
+            'right': 'left',
+            'top': '0px',
+        }
+    }
+    st_echarts(options=options)
+
+    df_portfolio = df_portfolio.reset_index(drop=True)
+    df_portfolio["profit_str"] = df_portfolio["profit"].map(lambda x: str(round(100 * x, 3)) + "%")
+
+    df_portfolio_daily = df_portfolio[['date', 'profit_str']]
+    df_portfolio_daily = df_portfolio_daily.sort_values("date", ascending=False)
+    df_portfolio_daily.columns = ['日期', '收益率']
+    df_portfolio_daily = df_portfolio_daily.head(100)
+
+    df_portfolio_month = df_portfolio
+    df_portfolio_month["月份"] = df_portfolio["date"].map(lambda x: str(x[:7]))
+    df_portfolio_month = df_portfolio_month.groupby("月份", as_index=False)["profit"].sum()
+    df_portfolio_month["profit_str"] = df_portfolio_month["profit"].map(lambda x: str(round(100 * x, 3)) + "%")
+    df_portfolio_month = df_portfolio_month[['月份', "profit_str"]]
+    df_portfolio_month.columns = ['月份', '收益率']
+    df_portfolio_month = df_portfolio_month.sort_values(by="月份", ascending=False)
+    st.markdown("# 每月收益率分析")
+    st.dataframe(df_portfolio_month, hide_index=True, width=width, height=300)
+    st.markdown("# 每日收益率分析")
+    st.dataframe(df_portfolio_daily, hide_index=True, width=width, height=300)
+
 
 def ratation_strategy():
     sql = '''
@@ -251,6 +318,7 @@ def calc_indicators(df_returns):
 
 page_names_to_funcs = {
     "组合投资": portfolio_strategy,
+    "线性回归组合投资": linear_portfolio_strategy,
     "轮动策略": ratation_strategy,
 }
 demo_name = st.sidebar.selectbox("选择页面", page_names_to_funcs.keys())
