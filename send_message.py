@@ -25,7 +25,8 @@ def send_message(content, token):
 def send_ratation_message(last_day, last_day_profit):
     print({"last_day": last_day, "now": now})
     last_day_profit = round(last_day_profit, 2)
-    if last_day == now:
+    hour = datetime.now(tz).hour
+    if last_day == now and 9 <= hour <= 16:
         message = f"组合投资\n日期：{last_day}\n涨幅：{last_day_profit}%"
         send_message(message, tokens)
 
