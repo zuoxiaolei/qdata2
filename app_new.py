@@ -3,7 +3,6 @@ import streamlit as st
 
 import pymysql
 from sqls import *
-from mysql_util import get_connection
 from streamlit_echarts import st_echarts
 import empyrical
 

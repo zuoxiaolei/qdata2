@@ -222,6 +222,7 @@ def get_portfolio_report():
         cursor.execute(sql)
         data = cursor.fetchall()
     df = pd.DataFrame(data, columns=['code', 'date', 'close', 'rate'])
+    df = df.sort_values(by="date")
     spark = get_spark()
     spark_df = spark.createDataFrame(df)
     spark_df = spark_df.groupby("date").pivot("code").mean("rate")
@@ -239,11 +240,13 @@ def get_portfolio_report():
     pandas_df['rate_cum'] = pandas_df['rate'] / 100 + 1
     pandas_df['rate_cum'] = pandas_df['rate_cum'].cumprod()
     data = list(zip(pandas_df.index.tolist(), pandas_df["rate_cum"].tolist()))
+    last_day, last_day_profit = pandas_df.index[-1], pandas_df["rate"].iloc[-1]
     sql = '''
     replace into etf.ads_eft_portfolio_rpt
     values (%s, %s)
     '''
     insert_table_by_batch(sql, data)
+    send_ratation_message(last_day, last_day_profit)
 
 
 def run_every_day():
@@ -252,7 +255,6 @@ def run_every_day():
     update_etf_history_data()
     update_trade_date()
     update_ratation()
-    send_ratation_message()
     update_rotation_rank()
     get_portfolio_report()
 
