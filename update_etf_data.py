@@ -10,6 +10,7 @@ import time
 import pytz
 import pandas as pd
 import numpy as np
+
 thread_num = 10
 tz = pytz.timezone('Asia/Shanghai')
 
@@ -203,6 +204,7 @@ def update_rotation_rank():
     with get_connection() as cursor:
         cursor.execute(sql)
 
+
 def get_portfolio_report():
     sql = '''
     select code, date, close, (close-close_lag1)/close_lag1*100 rate
@@ -248,7 +250,6 @@ def get_portfolio_report():
     insert_table_by_batch(sql, data)
     send_ratation_message(last_day, last_day_profit)
 
-
 def run_every_day():
     update_etf_scale()
     update_etf_basic_info()
@@ -261,4 +262,3 @@ def run_every_day():
 
 if __name__ == "__main__":
     run_every_day()
-    
